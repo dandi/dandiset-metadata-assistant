@@ -40,7 +40,7 @@ function InfoRow({ icon, label, value }: InfoRowProps) {
 }
 
 export function DandisetInfo() {
-  const { versionInfo, dandisetId, version } = useMetadataContext();
+  const { versionInfo, dandisetId } = useMetadataContext();
 
   if (!versionInfo) {
     return null;
@@ -55,7 +55,6 @@ export function DandisetInfo() {
           Dandiset {dandisetId}
         </Typography>
         <Box sx={{ display: 'flex', gap: 1 }}>
-          <Chip label={`v${version}`} size="small" variant="outlined" />
           <Chip label={versionInfo.status} size="small" color={statusColor} />
           {versionInfo.dandiset.embargo_status !== 'OPEN' && (
             <Chip label={versionInfo.dandiset.embargo_status} size="small" color="warning" />
