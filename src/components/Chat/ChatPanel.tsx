@@ -47,6 +47,7 @@ export function ChatPanel() {
     error,
     clearChat,
     abortResponse,
+    revertToMessage,
   } = useChat({
     getMetadata,
     addPendingChange,
@@ -291,13 +292,24 @@ export function ChatPanel() {
           </Paper>
         ) : (
           <>
-            {allMessages.map(({ message, inProgress }, index) => (
-              <MessageItem
-                key={index}
-                message={message}
-                inProgress={inProgress}
-              />
-            ))}
+            {allMessages.map(({ message, inProgress }, index) => {
+              // Find the actual index in chat.messages (excluding partial responses)
+              const isFromChat = index < chat.messages.length;
+              const chatIndex = isFromChat ? index : -1;
+              // Can revert if it's not the last message and not in progress
+              const canRevert = isFromChat && index < chat.messages.length - 1 && !responding;
+
+              return (
+                <MessageItem
+                  key={index}
+                  message={message}
+                  inProgress={inProgress}
+                  messageIndex={chatIndex}
+                  onRevert={revertToMessage}
+                  canRevert={canRevert}
+                />
+              );
+            })}
             {responding && !partialResponse && (
               <Box sx={{ display: "flex", justifyContent: "flex-start", mb: 2 }}>
                 <Paper
