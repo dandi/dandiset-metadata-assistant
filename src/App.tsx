@@ -49,25 +49,24 @@ const theme = createTheme({
   },
 });
 
-// Parse URL for dandiset ID and version
-function getUrlParams(): { dandisetId: string | null; version: string | null } {
+// Parse URL for dandiset ID
+function getUrlParams(): { dandisetId: string | null } {
   const params = new URLSearchParams(window.location.search);
   return {
     dandisetId: params.get('dandiset'),
-    version: params.get('version'),
   };
 }
 
-// Update URL with dandiset ID and version
-function updateUrl(dandisetId: string | null, version: string | null) {
+// Update URL with dandiset ID
+function updateUrl(dandisetId: string | null) {
   const url = new URL(window.location.href);
-  if (dandisetId && version) {
+  if (dandisetId) {
     url.searchParams.set('dandiset', dandisetId);
-    url.searchParams.set('version', version);
   } else {
     url.searchParams.delete('dandiset');
-    url.searchParams.delete('version');
   }
+  // Clean up any old version params
+  url.searchParams.delete('version');
   window.history.replaceState({}, '', url.toString());
 }
 
@@ -86,21 +85,21 @@ function AppContent() {
 
   // Load dandiset from URL on initial render
   useEffect(() => {
-    const { dandisetId: urlDandisetId, version: urlVersion } = getUrlParams();
-    if (urlDandisetId && urlVersion && !versionInfo) {
-      // Auto-load the dandiset from URL parameters
+    const { dandisetId: urlDandisetId } = getUrlParams();
+    if (urlDandisetId && !versionInfo) {
+      // Auto-load the dandiset from URL parameters (always use draft)
       const loadFromUrl = async () => {
         setIsLoading(true);
         setError(null);
         try {
-          const info = await fetchDandisetVersionInfo(urlDandisetId, urlVersion, apiKey);
+          const info = await fetchDandisetVersionInfo(urlDandisetId, 'draft', apiKey);
           setVersionInfo(info);
           setDandisetId(urlDandisetId);
-          setVersion(urlVersion);
+          setVersion('draft');
         } catch (err) {
           setError(err instanceof Error ? err.message : 'Failed to load dandiset from URL');
           // Clear invalid URL params
-          updateUrl(null, null);
+          updateUrl(null);
         } finally {
           setIsLoading(false);
         }
@@ -110,8 +109,8 @@ function AppContent() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Only run on initial mount
 
-  const handleDandisetLoaded = useCallback((newDandisetId: string, newVersion: string) => {
-    updateUrl(newDandisetId, newVersion);
+  const handleDandisetLoaded = useCallback((newDandisetId: string) => {
+    updateUrl(newDandisetId);
   }, []);
 
   const handleChangeDandiset = useCallback(() => {
@@ -119,7 +118,7 @@ function AppContent() {
     setDandisetId('');
     setVersion('draft');
     clearPendingChanges();
-    updateUrl(null, null);
+    updateUrl(null);
   }, [setVersionInfo, setDandisetId, setVersion, clearPendingChanges]);
 
   // Show welcome page if no dandiset is loaded

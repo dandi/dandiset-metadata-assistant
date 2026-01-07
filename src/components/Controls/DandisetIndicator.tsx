@@ -1,4 +1,4 @@
-import { Box, Typography, Chip, Button } from '@mui/material';
+import { Box, Typography, Button } from '@mui/material';
 import FolderOpenIcon from '@mui/icons-material/FolderOpen';
 import SwapHorizIcon from '@mui/icons-material/SwapHoriz';
 import { useMetadataContext } from '../../context/MetadataContext';
@@ -8,7 +8,7 @@ interface DandisetIndicatorProps {
 }
 
 export function DandisetIndicator({ onChangeDandiset }: DandisetIndicatorProps) {
-  const { dandisetId, version } = useMetadataContext();
+  const { dandisetId } = useMetadataContext();
 
   if (!dandisetId) {
     return null;
@@ -20,16 +20,6 @@ export function DandisetIndicator({ onChangeDandiset }: DandisetIndicatorProps) 
       <Typography variant="body1" sx={{ fontWeight: 500 }}>
         Dandiset {dandisetId}
       </Typography>
-      <Chip
-        label={version}
-        size="small"
-        sx={{
-          backgroundColor: 'rgba(255, 255, 255, 0.2)',
-          color: 'inherit',
-          height: 22,
-          fontSize: '0.75rem',
-        }}
-      />
       <Button
         size="small"
         onClick={onChangeDandiset}

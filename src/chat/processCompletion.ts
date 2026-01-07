@@ -40,7 +40,24 @@ const processCompletion = async (
   });
 
   if (!response.ok) {
-    throw new Error(`OpenRouter API error: ${response.statusText}`);
+    // Try to get detailed error message from response body
+    let errorDetails = response.statusText || `HTTP ${response.status}`;
+    try {
+      const errorBody = await response.text();
+      if (errorBody) {
+        // Try to parse as JSON for structured error
+        try {
+          const errorJson = JSON.parse(errorBody);
+          errorDetails = errorJson.error?.message || errorJson.message || errorJson.error || errorBody;
+        } catch {
+          // Not JSON, use raw text
+          errorDetails = errorBody;
+        }
+      }
+    } catch {
+      // Couldn't read body, stick with statusText
+    }
+    throw new Error(`OpenRouter API error: ${errorDetails}`);
   }
 
   const reader = response.body?.getReader();
