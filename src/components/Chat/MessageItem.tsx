@@ -1,16 +1,20 @@
 import { FunctionComponent, useState } from "react";
-import { Box, CircularProgress, Collapse, IconButton, Paper, Typography } from "@mui/material";
+import { Box, CircularProgress, Collapse, IconButton, Paper, Tooltip, Typography } from "@mui/material";
 import PersonIcon from "@mui/icons-material/Person";
 import SmartToyIcon from "@mui/icons-material/SmartToy";
 import BuildIcon from "@mui/icons-material/Build";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import ExpandLessIcon from "@mui/icons-material/ExpandLess";
+import HistoryIcon from "@mui/icons-material/History";
 import MarkdownContent from "./MarkdownContent";
 import { ChatMessage, ORContentPart } from "../../chat/types";
 
 interface MessageItemProps {
   message: ChatMessage;
   inProgress?: boolean;
+  messageIndex?: number;
+  onRevert?: (index: number) => void;
+  canRevert?: boolean;
 }
 
 const messageContentToString = (
@@ -299,13 +303,39 @@ const ToolResultItem: FunctionComponent<ToolResultItemProps> = ({ message }) => 
 const MessageItem: FunctionComponent<MessageItemProps> = ({
   message,
   inProgress = false,
+  messageIndex,
+  onRevert,
+  canRevert = false,
 }) => {
+  const [isHovered, setIsHovered] = useState(false);
+
+  const RevertButton = () => {
+    if (!canRevert || messageIndex === undefined || !onRevert) return null;
+    return (
+      <Tooltip title="Revert to this point">
+        <IconButton
+          size="small"
+          onClick={() => onRevert(messageIndex)}
+          sx={{
+            opacity: isHovered ? 1 : 0,
+            transition: "opacity 0.2s",
+            p: 0.5,
+          }}
+        >
+          <HistoryIcon sx={{ fontSize: 16 }} />
+        </IconButton>
+      </Tooltip>
+    );
+  };
+
   if (message.role === "user") {
     return (
       <Box
         sx={{
           display: "flex",
           justifyContent: "flex-end",
+          alignItems: "center",
+          gap: 1,
           mb: 2,
         }}
       >
@@ -345,8 +375,12 @@ const MessageItem: FunctionComponent<MessageItemProps> = ({
         sx={{
           display: "flex",
           justifyContent: "flex-start",
+          alignItems: "center",
+          gap: 1,
           mb: 2,
         }}
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
       >
         <Paper
           elevation={1}
@@ -404,6 +438,7 @@ const MessageItem: FunctionComponent<MessageItemProps> = ({
             </Box>
           </Box>
         </Paper>
+        <RevertButton />
       </Box>
     );
   }

@@ -21,7 +21,8 @@ export type ChatAction =
         estimatedCost: number;
       };
     }
-  | { type: "clear" };
+  | { type: "clear" }
+  | { type: "revert_to_index"; index: number };
 
 const emptyChat: Chat = {
   messages: [],
@@ -59,6 +60,11 @@ const chatReducer = (state: Chat, action: ChatAction): Chat => {
       };
     case "clear":
       return emptyChat;
+    case "revert_to_index":
+      return {
+        ...state,
+        messages: state.messages.slice(0, action.index + 1),
+      };
     default:
       return state;
   }
@@ -282,6 +288,17 @@ Available tools:
     }
   }, []);
 
+  const revertToMessage = useCallback((messageIndex: number) => {
+    // Abort any in-progress request
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    setChat((prev) => chatReducer(prev, { type: "revert_to_index", index: messageIndex }));
+    setError(null);
+    setPartialResponse(null);
+    setResponding(false);
+  }, []);
+
   return {
     chat,
     submitUserMessage,
@@ -291,6 +308,7 @@ Available tools:
     error,
     clearChat,
     abortResponse,
+    revertToMessage,
     tools,
   };
 };
