@@ -35,6 +35,9 @@ const ALLOWED_DOMAINS = [
   "purl.obolibrary.org",
   "obofoundry.org",
   "identifiers.org",
+  "cognitiveatlas.org",
+  // Academic APIs
+  "openalex.org",
 ];
 
 const isUrlAllowed = (url: string): boolean => {
@@ -103,15 +106,27 @@ export const fetchUrlTool: QPTool = {
     }
 
     try {
-      // Use a CORS proxy to fetch the content since this runs in the browser
-      // We'll use a simple approach that works for most scientific publications
-      const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(url)}`;
+      // Some APIs support CORS natively, so we can fetch directly
+      // For others, we need to use a CORS proxy
+      const corsEnabledDomains = [
+        "api.openalex.org",
+        "api.crossref.org",
+        "ebi.ac.uk",
+      ];
 
-      const response = await fetch(proxyUrl, {
+      const hostname = parsedUrl.hostname.toLowerCase();
+      const needsProxy = !corsEnabledDomains.some(
+        (domain) => hostname === domain || hostname.endsWith("." + domain)
+      );
+
+      const fetchUrl = needsProxy
+        ? `https://corsproxy.io/?${encodeURIComponent(url)}`
+        : url;
+
+      const response = await fetch(fetchUrl, {
         method: "GET",
         headers: {
-          Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-          "User-Agent": "DandisetMetadataAssistant/1.0",
+          Accept: "application/json,text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
         },
       });
 

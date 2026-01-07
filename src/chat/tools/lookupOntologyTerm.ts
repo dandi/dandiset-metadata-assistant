@@ -2,12 +2,13 @@ import { QPTool, ToolExecutionContext } from "../types";
 
 /**
  * A tool that allows the AI to look up validated ontology terms from
- * UBERON (anatomy), DOID (diseases), and other biomedical ontologies
- * using the EBI Ontology Lookup Service (OLS).
+ * UBERON (anatomy), DOID (diseases), Cognitive Atlas (cognitive concepts),
+ * and other biomedical ontologies using the EBI Ontology Lookup Service (OLS)
+ * and the Cognitive Atlas API.
  */
 
 // Ontology configurations with their OLS identifiers and DANDI schemaKey mappings
-const ONTOLOGY_CONFIG: Record<
+const OLS_ONTOLOGY_CONFIG: Record<
   string,
   { olsId: string; schemaKey: "Anatomy" | "Disorder" | "GenericType"; description: string }
 > = {
@@ -59,6 +60,12 @@ interface OLSResponse {
   };
 }
 
+interface CognitiveAtlasResult {
+  id: string;
+  name: string;
+  definition_text?: string;
+}
+
 interface FormattedResult {
   identifier: string;
   name: string;
@@ -72,20 +79,20 @@ export const lookupOntologyTermTool: QPTool = {
   toolFunction: {
     name: "lookup_ontology_term",
     description:
-      "Look up validated ontology terms for brain regions, anatomical structures, diseases, or disorders. Returns standardized identifiers (URIs) that can be used with propose_metadata_change to add entries to the 'about' field.",
+      "Look up validated ontology terms for brain regions, anatomical structures, diseases, disorders, or cognitive concepts. Returns standardized identifiers (URIs) that can be used with propose_metadata_change to add entries to the 'about' field.",
     parameters: {
       type: "object",
       properties: {
         term: {
           type: "string",
           description:
-            "The term to search for (e.g., 'hippocampus', 'Parkinson disease', 'visual cortex')",
+            "The term to search for (e.g., 'hippocampus', 'Parkinson disease', 'working memory', 'attention')",
         },
         category: {
           type: "string",
-          enum: ["anatomy", "disorder", "auto"],
+          enum: ["anatomy", "disorder", "cognitive", "auto"],
           description:
-            "The category to search in: 'anatomy' for brain regions and anatomical structures (searches UBERON, CL), 'disorder' for diseases and conditions (searches DOID, HP, NCIT), or 'auto' to search both and return the best matches. Default is 'auto'.",
+            "The category to search in: 'anatomy' for brain regions and anatomical structures (searches UBERON, CL), 'disorder' for diseases and conditions (searches DOID, HP, NCIT), 'cognitive' for cognitive concepts and mental processes (searches Cognitive Atlas), or 'auto' to search all and return the best matches. Default is 'auto'.",
         },
         maxResults: {
           type: "number",
@@ -115,22 +122,28 @@ export const lookupOntologyTermTool: QPTool = {
     const clampedMaxResults = Math.min(Math.max(1, maxResults), 10);
 
     // Determine which ontologies to search based on category
-    let ontologiesToSearch: string[];
+    let olsOntologiesToSearch: string[];
+    let searchCognitiveAtlas = false;
+
     if (category === "anatomy") {
-      ontologiesToSearch = ["UBERON", "CL"];
+      olsOntologiesToSearch = ["UBERON", "CL"];
     } else if (category === "disorder") {
-      ontologiesToSearch = ["DOID", "HP", "NCIT"];
+      olsOntologiesToSearch = ["DOID", "HP", "NCIT"];
+    } else if (category === "cognitive") {
+      olsOntologiesToSearch = [];
+      searchCognitiveAtlas = true;
     } else {
-      // auto - search both
-      ontologiesToSearch = ["UBERON", "DOID", "HP", "CL"];
+      // auto - search all
+      olsOntologiesToSearch = ["UBERON", "DOID", "HP", "CL"];
+      searchCognitiveAtlas = true;
     }
 
     try {
       const allResults: FormattedResult[] = [];
 
-      // Search each ontology
-      for (const ontology of ontologiesToSearch) {
-        const config = ONTOLOGY_CONFIG[ontology];
+      // Search OLS ontologies
+      for (const ontology of olsOntologiesToSearch) {
+        const config = OLS_ONTOLOGY_CONFIG[ontology];
         if (!config) continue;
 
         try {
@@ -149,6 +162,24 @@ export const lookupOntologyTermTool: QPTool = {
         } catch (error) {
           // Continue with other ontologies if one fails
           console.error(`Error searching ${ontology}:`, error);
+        }
+      }
+
+      // Search Cognitive Atlas
+      if (searchCognitiveAtlas) {
+        try {
+          const cogAtlasResults = await searchCognitiveAtlas_API(term, clampedMaxResults);
+          for (const result of cogAtlasResults) {
+            allResults.push({
+              identifier: `https://www.cognitiveatlas.org/concept/id/${result.id}`,
+              name: result.name,
+              schemaKey: "GenericType",
+              ontology: "CognitiveAtlas",
+              description: result.definition_text,
+            });
+          }
+        } catch (error) {
+          console.error("Error searching Cognitive Atlas:", error);
         }
       }
 
@@ -208,26 +239,28 @@ export const lookupOntologyTermTool: QPTool = {
   },
 
   getDetailedDescription: () => {
-    return `Use this tool to look up validated ontology terms when users mention brain regions, anatomical structures, diseases, or disorders.
+    return `Use this tool to look up validated ontology terms when users mention brain regions, anatomical structures, diseases, disorders, or cognitive concepts.
 
 **IMPORTANT: Always use this tool to get the correct ontology identifier before proposing changes to the 'about' field. Never guess or fabricate ontology identifiers.**
 
 **Usage:**
-- Search for a term (e.g., "hippocampus", "Parkinson disease")
-- Optionally specify a category: "anatomy" or "disorder"
+- Search for a term (e.g., "hippocampus", "Parkinson disease", "working memory")
+- Optionally specify a category: "anatomy", "disorder", or "cognitive"
 - The tool returns validated identifiers that conform to the DANDI schema
 
 **Ontologies searched:**
 - **Anatomy**: UBERON (anatomical structures), CL (cell types)
 - **Disorder**: DOID (diseases), HP (phenotypes), NCIT (NCI thesaurus)
+- **Cognitive**: Cognitive Atlas (cognitive concepts, mental processes, psychological constructs)
 
 **Examples:**
 - Look up a brain region: { "term": "hippocampus", "category": "anatomy" }
 - Look up a disease: { "term": "Parkinson", "category": "disorder" }
+- Look up a cognitive concept: { "term": "working memory", "category": "cognitive" }
 - Auto-detect category: { "term": "epilepsy" }
 
 **Workflow:**
-1. User mentions a brain area or disease
+1. User mentions a brain area, disease, or cognitive concept
 2. Use this tool to find the validated ontology term
 3. Present options to the user if multiple matches exist
 4. Use propose_metadata_change to add the selected term to the "about" array
@@ -236,8 +269,8 @@ export const lookupOntologyTermTool: QPTool = {
 Each result includes:
 - identifier: The URI to use in propose_metadata_change
 - name: Human-readable label
-- schemaKey: "Anatomy" or "Disorder" (determines the type for the about field)
-- ontology: Source ontology (UBERON, DOID, etc.)
+- schemaKey: "Anatomy", "Disorder", or "GenericType" (determines the type for the about field)
+- ontology: Source ontology (UBERON, DOID, CognitiveAtlas, etc.)
 - description: Optional definition of the term`;
   },
 };
@@ -272,4 +305,41 @@ async function searchOLS(
 
   const data: OLSResponse = await response.json();
   return data.response?.docs || [];
+}
+
+/**
+ * Search the Cognitive Atlas API for cognitive concepts
+ */
+async function searchCognitiveAtlas_API(
+  term: string,
+  maxResults: number
+): Promise<CognitiveAtlasResult[]> {
+  const baseUrl = "https://www.cognitiveatlas.org/api/v-alpha/concept";
+  const params = new URLSearchParams({
+    search: term,
+  });
+
+  const response = await fetch(`${baseUrl}?${params.toString()}`, {
+    method: "GET",
+    headers: {
+      Accept: "application/json",
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error(`Cognitive Atlas API returned ${response.status}: ${response.statusText}`);
+  }
+
+  const data: CognitiveAtlasResult[] = await response.json();
+
+  // The API returns all concepts - filter by search term and limit results
+  const termLower = term.toLowerCase();
+  const filtered = data
+    .filter((item) =>
+      item.name.toLowerCase().includes(termLower) ||
+      item.definition_text?.toLowerCase().includes(termLower)
+    )
+    .slice(0, maxResults);
+
+  return filtered;
 }

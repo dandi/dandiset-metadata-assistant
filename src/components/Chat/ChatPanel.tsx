@@ -10,6 +10,8 @@ import {
   Tooltip,
   Button,
 } from "@mui/material";
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
+import ExpandLessIcon from "@mui/icons-material/ExpandLess";
 import SmartToyIcon from "@mui/icons-material/SmartToy";
 import SettingsIcon from "@mui/icons-material/Settings";
 import RefreshIcon from "@mui/icons-material/Refresh";
@@ -54,6 +56,7 @@ export function ChatPanel() {
 
   const [newPrompt, setNewPrompt] = useState<string>("");
   const [settingsOpen, setSettingsOpen] = useState<boolean>(false);
+  const [errorExpanded, setErrorExpanded] = useState<boolean>(false);
   const conversationRef = useRef<HTMLDivElement>(null);
 
   // Check if API key is required but not present
@@ -324,8 +327,32 @@ export function ChatPanel() {
 
       {/* Error Display */}
       {error && (
-        <Alert severity="error" sx={{ mx: 2, mb: 1 }}>
-          {error}
+        <Alert
+          severity="error"
+          sx={{ mx: 2, mb: 1 }}
+          action={
+            error.length > 100 ? (
+              <IconButton
+                size="small"
+                onClick={() => setErrorExpanded(!errorExpanded)}
+                sx={{ color: "inherit" }}
+              >
+                {errorExpanded ? <ExpandLessIcon /> : <ExpandMoreIcon />}
+              </IconButton>
+            ) : null
+          }
+        >
+          {error.length > 100 && !errorExpanded ? (
+            <Box>
+              <Typography variant="body2" component="span">
+                {error.substring(0, 100)}...
+              </Typography>
+            </Box>
+          ) : (
+            <Box sx={{ whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
+              {error}
+            </Box>
+          )}
         </Alert>
       )}
 
