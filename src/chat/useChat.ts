@@ -214,6 +214,11 @@ ${JSON.stringify(metadata, null, 2)}
 - For arrays, use numeric indices (e.g., "keywords.0" for the first keyword)
 - **IMPORTANT**: All proposed changes are validated against the DANDI schema. Invalid changes will be rejected with an error message. If a change is rejected, read the error carefully and correct your proposal.
 
+**TOOL CALL DISCIPLINE:**
+- Do NOT make excessive consecutive tool calls without checking in with the user
+- If you've made 3-5 consecutive tool calls, pause and summarize what you've done and ask the user if they want you to continue
+- If you encounter errors or unexpected results, stop and ask the user for guidance rather than repeatedly retrying
+
 ## DANDI Metadata Best Practices
 
 ${metadataDocs || "(Documentation not yet loaded)"}
