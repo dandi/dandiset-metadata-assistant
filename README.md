@@ -2,6 +2,8 @@
 
 A web application for viewing and editing DANDI Archive dandiset metadata with AI assistance.
 
+https://magland.github.io/dandiset-metadata-assistant/
+
 ## Features
 
 - **Load dandiset metadata** from the DANDI Archive API by ID and version
