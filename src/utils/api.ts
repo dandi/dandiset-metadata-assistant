@@ -63,16 +63,49 @@ export async function fetchDandisetVersionInfo(
   return data as DandisetVersionInfo;
 }
 
-// Placeholder for committing changes
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
+// Proxy server URL - configure based on environment
+// const PROXY_URL = import.meta.env.VITE_PROXY_URL || 'http://localhost:8787';
+const PROXY_URL = import.meta.env.VITE_PROXY_URL || 'https://dandiset-metadata-proxy.figurl.workers.dev';
+
 export async function commitMetadataChanges(
   dandisetId: string,
   version: string,
   metadata: unknown,
   apiKey: string
 ): Promise<void> {
-  // TODO: Implement actual API call to commit changes
-  // Will use: dandisetId, version, metadata, apiKey
-  console.log('Commit changes - not yet implemented', { dandisetId, version, metadata, apiKey });
-  throw new Error('Commit functionality not yet implemented');
+  const url = `${PROXY_URL}/commit`;
+
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      dandisetId,
+      version,
+      metadata,
+      apiKey,
+    }),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    
+    if (errorData.validationErrors) {
+      throw new Error(`Metadata validation failed: ${errorData.message || 'Invalid metadata'}`);
+    }
+    
+    if (response.status === 401 || response.status === 403) {
+      throw new Error('Authentication failed. Please check your API key.');
+    }
+    
+    throw new Error(
+      errorData.message || 
+      errorData.error || 
+      `Failed to commit metadata: ${response.statusText}`
+    );
+  }
+
+  const data = await response.json();
+  console.log('Metadata committed successfully', data);
 }
