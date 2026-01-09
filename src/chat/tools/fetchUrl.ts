@@ -40,6 +40,7 @@ const ALLOWED_DOMAINS = [
   "openalex.org",
   "ror.org",
   "europepmc.org",
+  "orcid.org",
 ];
 
 const isUrlAllowed = (url: string): boolean => {

@@ -1,7 +1,6 @@
 import { useEffect, useCallback } from 'react';
 import { ThemeProvider, createTheme, CssBaseline } from '@mui/material';
 import { Box, AppBar, Toolbar, Typography } from '@mui/material';
-import ScienceIcon from '@mui/icons-material/Science';
 import { MetadataProvider, useMetadataContext } from './context/MetadataContext';
 import logoIcon from '/logo-white.svg';
 import { MainLayout } from './components/Layout/MainLayout';
