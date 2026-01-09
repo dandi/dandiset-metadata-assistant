@@ -38,6 +38,8 @@ const ALLOWED_DOMAINS = [
   "cognitiveatlas.org",
   // Academic APIs
   "openalex.org",
+  "ror.org",
+  "europepmc.org",
 ];
 
 const isUrlAllowed = (url: string): boolean => {
@@ -111,7 +113,9 @@ export const fetchUrlTool: QPTool = {
       const corsEnabledDomains = [
         "api.openalex.org",
         "api.crossref.org",
+        "api.ror.org",
         "ebi.ac.uk",
+        "europepmc.org",
       ];
 
       const hostname = parsedUrl.hostname.toLowerCase();
