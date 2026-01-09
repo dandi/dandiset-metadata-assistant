@@ -142,7 +142,6 @@ const useChat = (options: UseChatOptions) => {
     [getMetadata, addPendingChange]
   );
 
-
   const buildSystemPrompt = useCallback(() => {
     const metadata = getMetadata();
     const parts: string[] = [];
