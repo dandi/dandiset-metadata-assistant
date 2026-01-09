@@ -242,11 +242,12 @@ function ResourceRow({ resource, index, hasChange, hasChildChanges, onRevert }: 
 }
 
 export function RelatedResourcesTable() {
-  const { versionInfo, pendingChanges, removePendingChange, getPendingChangeForPath } = useMetadataContext();
+  const { getModifiedMetadata, pendingChanges, removePendingChange, getPendingChangeForPath } = useMetadataContext();
 
-  if (!versionInfo) return null;
+  const metadata = getModifiedMetadata();
+  if (!metadata) return null;
 
-  const resources = versionInfo.metadata.relatedResource || [];
+  const resources = metadata.relatedResource || [];
 
   if (resources.length === 0) {
     return (

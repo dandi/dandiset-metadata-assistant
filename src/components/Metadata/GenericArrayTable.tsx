@@ -244,12 +244,13 @@ export function GenericArrayTable({ path, items, columns, emptyMessage = 'No ite
 // Pre-configured tables for specific types
 
 export function AboutTable() {
-  const { versionInfo } = useMetadataContext();
-  if (!versionInfo) return null;
+  const { getModifiedMetadata } = useMetadataContext();
+  const metadata = getModifiedMetadata();
+  if (!metadata) return null;
 
   const columns: ColumnDef[] = [
-    { 
-      key: 'name', 
+    {
+      key: 'name',
       label: 'Name',
       render: (value) => (
         <Typography variant="body2" sx={{ fontWeight: 500 }}>
@@ -257,8 +258,8 @@ export function AboutTable() {
         </Typography>
       )
     },
-    { 
-      key: 'identifier', 
+    {
+      key: 'identifier',
       label: 'Identifier',
       render: (value) => (
         <Typography variant="body2" sx={{ fontFamily: 'monospace', fontSize: '0.75rem' }}>
@@ -266,15 +267,15 @@ export function AboutTable() {
         </Typography>
       )
     },
-    { 
-      key: 'schemaKey', 
+    {
+      key: 'schemaKey',
       label: 'Type',
       render: (value) => (
-        <Chip 
-          label={(value as string)?.replace('Type', '') || 'Unknown'} 
-          size="small" 
+        <Chip
+          label={(value as string)?.replace('Type', '') || 'Unknown'}
+          size="small"
           variant="outlined"
-          sx={{ height: 20, fontSize: '0.7rem' }} 
+          sx={{ height: 20, fontSize: '0.7rem' }}
         />
       )
     },
@@ -283,7 +284,7 @@ export function AboutTable() {
   return (
     <GenericArrayTable
       path="about"
-      items={versionInfo.metadata.about as GenericItem[]}
+      items={metadata.about as GenericItem[]}
       columns={columns}
       emptyMessage="No subject matter specified"
     />
@@ -291,12 +292,13 @@ export function AboutTable() {
 }
 
 export function EthicsApprovalTable() {
-  const { versionInfo } = useMetadataContext();
-  if (!versionInfo) return null;
+  const { getModifiedMetadata } = useMetadataContext();
+  const metadata = getModifiedMetadata();
+  if (!metadata) return null;
 
   const columns: ColumnDef[] = [
-    { 
-      key: 'identifier', 
+    {
+      key: 'identifier',
       label: 'Protocol Identifier',
       render: (value) => (
         <Typography variant="body2" sx={{ fontWeight: 500 }}>
@@ -309,7 +311,7 @@ export function EthicsApprovalTable() {
   return (
     <GenericArrayTable
       path="ethicsApproval"
-      items={versionInfo.metadata.ethicsApproval as GenericItem[]}
+      items={metadata.ethicsApproval as GenericItem[]}
       columns={columns}
       emptyMessage="No ethics approvals"
     />
@@ -317,12 +319,13 @@ export function EthicsApprovalTable() {
 }
 
 export function ProjectsTable() {
-  const { versionInfo } = useMetadataContext();
-  if (!versionInfo) return null;
+  const { getModifiedMetadata } = useMetadataContext();
+  const metadata = getModifiedMetadata();
+  if (!metadata) return null;
 
   const columns: ColumnDef[] = [
-    { 
-      key: 'name', 
+    {
+      key: 'name',
       label: 'Name',
       render: (value) => (
         <Typography variant="body2" sx={{ fontWeight: 500 }}>
@@ -330,8 +333,8 @@ export function ProjectsTable() {
         </Typography>
       )
     },
-    { 
-      key: 'identifier', 
+    {
+      key: 'identifier',
       label: 'Identifier',
       render: (value) => (
         <Typography variant="body2" sx={{ fontFamily: 'monospace', fontSize: '0.75rem' }}>
@@ -344,7 +347,7 @@ export function ProjectsTable() {
   return (
     <GenericArrayTable
       path="wasGeneratedBy"
-      items={versionInfo.metadata.wasGeneratedBy as GenericItem[]}
+      items={metadata.wasGeneratedBy as GenericItem[]}
       columns={columns}
       emptyMessage="No associated projects"
     />

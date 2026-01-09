@@ -263,11 +263,12 @@ function ContributorRow({ contributor, index, hasChange, hasChildChanges, onReve
 }
 
 export function ContributorsTable() {
-  const { versionInfo, pendingChanges, removePendingChange, getPendingChangeForPath } = useMetadataContext();
+  const { getModifiedMetadata, pendingChanges, removePendingChange, getPendingChangeForPath } = useMetadataContext();
 
-  if (!versionInfo) return null;
+  const metadata = getModifiedMetadata();
+  if (!metadata) return null;
 
-  const contributors = versionInfo.metadata.contributor || [];
+  const contributors = metadata.contributor || [];
 
   if (contributors.length === 0) {
     return (
