@@ -151,7 +151,7 @@ function AppContent() {
       {/* App Bar with loaded dandiset */}
       <AppBar position="static" elevation={1}>
         <Toolbar variant="dense">
-          <ScienceIcon sx={{ mr: 1 }} />
+          <Box component="img" src={logoIcon} alt="Logo" sx={{ height: 24, mr: 1 }} />
           <Typography
             variant="h6"
             component="div"
