@@ -6,6 +6,7 @@ export interface OwnedDandiset {
   identifier: string;
   created: string;
   modified: string;
+  embargo_status: string;
   draft_version: {
     version: string;
     name: string;
@@ -19,7 +20,7 @@ export async function fetchOwnedDandisets(
   apiKey: string,
   order: DandisetSortOrder = '-modified'
 ): Promise<OwnedDandiset[]> {
-  const url = `${DANDI_API_BASE}/dandisets/?user=me&order=${order}&page_size=100`;
+  const url = `${DANDI_API_BASE}/dandisets/?user=me&order=${order}&page_size=100&embargoed=true`;
 
   const response = await fetch(url, {
     headers: {
