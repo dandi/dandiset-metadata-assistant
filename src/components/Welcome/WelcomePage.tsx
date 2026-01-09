@@ -22,6 +22,7 @@ import KeyIcon from '@mui/icons-material/Key';
 import SortIcon from '@mui/icons-material/Sort';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import VisibilityOffIcon from '@mui/icons-material/VisibilityOff';
+import LockIcon from '@mui/icons-material/Lock';
 import { useMetadataContext } from '../../context/MetadataContext';
 import {
   fetchDandisetVersionInfo,
@@ -346,6 +347,23 @@ export function WelcomePage({ onDandisetLoaded }: WelcomePageProps) {
                       >
                         {dandiset.draft_version.status}
                       </Typography>
+                      {dandiset.embargo_status === 'EMBARGOED' && (
+                        <Box
+                          sx={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 0.5,
+                            px: 1,
+                            py: 0.25,
+                            borderRadius: 1,
+                            backgroundColor: 'warning.light',
+                            color: 'white',
+                          }}
+                        >
+                          <LockIcon sx={{ fontSize: 14 }} />
+                          <Typography variant="caption">Embargoed</Typography>
+                        </Box>
+                      )}
                     </Box>
                   }
                   secondary={
