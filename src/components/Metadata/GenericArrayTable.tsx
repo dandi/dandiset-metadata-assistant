@@ -47,6 +47,11 @@ interface ColumnDef {
 
 function GenericRow({ item, originalItem, path, columns, hasChange, hasChildChanges, isNewItem, onRevert, getPendingChangeForPath }: GenericRowProps) {
   const [expanded, setExpanded] = useState(false);
+
+  // Guard against null/undefined items
+  if (!item) {
+    return null;
+  }
   
   // Get extra fields not shown in columns
   const columnKeys = columns.map(c => c.key);
