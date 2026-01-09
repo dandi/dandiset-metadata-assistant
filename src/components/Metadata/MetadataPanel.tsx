@@ -4,6 +4,7 @@ import DescriptionIcon from '@mui/icons-material/Description';
 import EditIcon from '@mui/icons-material/Edit';
 import { useMetadataContext } from '../../context/MetadataContext';
 import { DandisetInfo } from './DandisetInfo';
+import { ChangesSummary } from './ChangesSummary';
 import { MetadataDisplay } from './MetadataDisplay';
 import { CommitButton } from '../Controls/CommitButton';
 import { JsonEditorDialog } from './JsonEditorDialog';
@@ -77,6 +78,7 @@ export function MetadataPanel() {
         ) : versionInfo ? (
           <>
             <DandisetInfo />
+            <ChangesSummary />
             <MetadataDisplay />
           </>
         ) : (
