@@ -1,6 +1,7 @@
-import { useEffect, useCallback } from 'react';
+import { useEffect, useCallback, useState } from 'react';
 import { ThemeProvider, createTheme, CssBaseline } from '@mui/material';
-import { Box, AppBar, Toolbar, Typography } from '@mui/material';
+import { Box, AppBar, Toolbar, Typography, IconButton } from '@mui/material';
+import InfoIcon from '@mui/icons-material/Info';
 import { MetadataProvider, useMetadataContext } from './context/MetadataContext';
 import logoIcon from '/logo-white.svg';
 import { MainLayout } from './components/Layout/MainLayout';
@@ -9,6 +10,7 @@ import { MetadataPanel } from './components/Metadata/MetadataPanel';
 import { WelcomePage } from './components/Welcome/WelcomePage';
 import { DandisetIndicator } from './components/Controls/DandisetIndicator';
 import { ApiKeyManager } from './components/Controls/ApiKeyManager';
+import AboutDialog from './components/About/AboutDialog';
 import { fetchDandisetVersionInfo } from './utils/api';
 
 // Create a custom theme with better colors for diffs
@@ -84,6 +86,8 @@ function AppContent() {
     setOriginalMetadata
   } = useMetadataContext();
 
+  const [aboutDialogOpen, setAboutDialogOpen] = useState(false);
+
   useEffect(() => {
     if (versionInfo && versionInfo.metadata) {
       setOriginalMetadata(versionInfo.metadata);
@@ -143,6 +147,14 @@ function AppContent() {
             <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
               Dandiset Metadata Assistant
             </Typography>
+            <IconButton
+              color="inherit"
+              onClick={() => setAboutDialogOpen(true)}
+              size="small"
+              sx={{ mr: 1 }}
+            >
+              <InfoIcon />
+            </IconButton>
             <ApiKeyManager />
           </Toolbar>
         </AppBar>
@@ -151,6 +163,12 @@ function AppContent() {
         <Box sx={{ flex: 1, overflow: 'hidden' }}>
           <WelcomePage onDandisetLoaded={handleDandisetLoaded} />
         </Box>
+
+        {/* About Dialog */}
+        <AboutDialog
+          open={aboutDialogOpen}
+          onClose={() => setAboutDialogOpen(false)}
+        />
       </Box>
     );
   }
@@ -178,6 +196,14 @@ function AppContent() {
           <Box sx={{ flexGrow: 1 }}>
             <DandisetIndicator onChangeDandiset={handleChangeDandiset} />
           </Box>
+          <IconButton
+            color="inherit"
+            onClick={() => setAboutDialogOpen(true)}
+            size="small"
+            sx={{ mr: 1 }}
+          >
+            <InfoIcon />
+          </IconButton>
           <ApiKeyManager />
         </Toolbar>
       </AppBar>
@@ -192,6 +218,12 @@ function AppContent() {
           maxLeftWidth={75}
         />
       </Box>
+
+      {/* About Dialog */}
+      <AboutDialog
+        open={aboutDialogOpen}
+        onClose={() => setAboutDialogOpen(false)}
+      />
     </Box>
   );
 }
