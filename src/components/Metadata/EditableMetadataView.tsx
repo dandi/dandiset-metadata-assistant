@@ -148,6 +148,29 @@ function StringArrayDisplay({ values, isModified }: { values: string[]; isModifi
 }
 
 /**
+ * Extracts identifiers (like ROR IDs) from a URL or returns the identifier as-is
+ */
+function formatIdentifier(identifier: string): string {
+  // Extract ROR ID from URL like https://ror.org/0190ak572
+  const rorMatch = identifier.match(/ror\.org\/([a-z0-9]+)/i);
+  if (rorMatch) return `ROR:${rorMatch[1]}`;
+  return identifier;
+}
+
+/**
+ * Formats an affiliation object showing both name and identifier
+ */
+function formatAffiliation(obj: Record<string, unknown>): string {
+  const name = typeof obj.name === 'string' ? obj.name : '';
+  const identifier = typeof obj.identifier === 'string' ? obj.identifier : '';
+  
+  if (name && identifier) {
+    return `${name} (${formatIdentifier(identifier)})`;
+  }
+  return name || identifier || '—';
+}
+
+/**
  * Extracts a display name from a complex object
  */
 function getObjectDisplayName(obj: Record<string, unknown>): string {
@@ -206,7 +229,13 @@ function ObjectDisplay({ obj, modifiedPaths }: { obj: Record<string, unknown>; m
                 value.length > 0 ? (
                   typeof value[0] === 'object' ? (
                     (value as Record<string, unknown>[])
-                      .map((item) => getObjectDisplayName(item))
+                      .map((item) => {
+                        // Use formatAffiliation for affiliation arrays
+                        if (key === 'affiliation' || item.schemaKey === 'Affiliation') {
+                          return formatAffiliation(item);
+                        }
+                        return getObjectDisplayName(item);
+                      })
                       .join(', ')
                   ) : (
                     value.join(', ')
