@@ -1,14 +1,17 @@
 import { useState } from 'react';
-import { Box, Button, Typography, Tooltip, Badge, CircularProgress, Alert, Snackbar } from '@mui/material';
+import { Box, Button, Typography, Tooltip, Badge, CircularProgress, Alert, Snackbar, IconButton } from '@mui/material';
 import SaveIcon from '@mui/icons-material/Save';
 import DeleteSweepIcon from '@mui/icons-material/DeleteSweep';
 import LockIcon from '@mui/icons-material/Lock';
+import LinkIcon from '@mui/icons-material/Link';
 import { useMetadataContext } from '../../context/MetadataContext';
 import { commitMetadataChanges, fetchDandisetVersionInfo } from '../../utils/api';
+import { createProposalLink } from '../../core/proposalLink';
+import type { DandisetMetadata } from '../../types/dandiset';
 
 export function CommitButton() {
-  const { 
-    apiKey, 
+  const {
+    apiKey,
     versionInfo,
     dandisetId,
     version,
@@ -22,6 +25,8 @@ export function CommitButton() {
   const [isCommitting, setIsCommitting] = useState(false);
   const [commitError, setCommitError] = useState<string | null>(null);
   const [commitSuccess, setCommitSuccess] = useState(false);
+  const [copySuccess, setCopySuccess] = useState(false);
+  const [copyError, setCopyError] = useState<string | null>(null);
 
   const hasChanges = JSON.stringify(originalMetadata) !== JSON.stringify(modifiedMetadata);
   const canCommit = hasChanges && !!apiKey && !!versionInfo;
@@ -69,6 +74,31 @@ export function CommitButton() {
     }
   };
 
+  const handleCopyProposalLink = async () => {
+    if (!dandisetId || !originalMetadata || !modifiedMetadata || !hasChanges) {
+      return;
+    }
+
+    try {
+      const link = await createProposalLink(
+        dandisetId,
+        originalMetadata as DandisetMetadata,
+        modifiedMetadata as DandisetMetadata
+      );
+      
+      if (!link) {
+        setCopyError('No changes to share');
+        return;
+      }
+      
+      await navigator.clipboard.writeText(link);
+      setCopySuccess(true);
+    } catch (error) {
+      console.error('Failed to copy proposal link:', error);
+      setCopyError(error instanceof Error ? error.message : 'Failed to create proposal link');
+    }
+  };
+
   if (!versionInfo) {
     return null;
   }
@@ -84,6 +114,27 @@ export function CommitButton() {
             </Typography>
           </Badge>
         )}
+
+        {/* Copy Proposal Link button */}
+        <Tooltip title={!hasChanges ? 'No changes to share' : 'Copy a shareable link with your proposed changes'}>
+          <span>
+            <IconButton
+              color="primary"
+              size="small"
+              onClick={handleCopyProposalLink}
+              disabled={!hasChanges || isCommitting}
+              sx={{
+                border: '1px solid',
+                borderColor: 'primary.main',
+                '&:disabled': {
+                  borderColor: 'action.disabled'
+                }
+              }}
+            >
+              <LinkIcon />
+            </IconButton>
+          </span>
+        </Tooltip>
 
         {/* Discard button */}
         <Button
@@ -146,13 +197,47 @@ export function CommitButton() {
         onClose={() => setCommitError(null)}
         anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
       >
-        <Alert 
-          onClose={() => setCommitError(null)} 
-          severity="error" 
+        <Alert
+          onClose={() => setCommitError(null)}
+          severity="error"
           variant="filled"
           sx={{ width: '100%' }}
         >
           {commitError}
+        </Alert>
+      </Snackbar>
+
+      {/* Copy success snackbar */}
+      <Snackbar
+        open={copySuccess}
+        autoHideDuration={4000}
+        onClose={() => setCopySuccess(false)}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert
+          onClose={() => setCopySuccess(false)}
+          severity="success"
+          variant="filled"
+          sx={{ width: '100%' }}
+        >
+          Proposal link copied to clipboard!
+        </Alert>
+      </Snackbar>
+
+      {/* Copy error snackbar */}
+      <Snackbar
+        open={!!copyError}
+        autoHideDuration={10000}
+        onClose={() => setCopyError(null)}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert
+          onClose={() => setCopyError(null)}
+          severity="error"
+          variant="filled"
+          sx={{ width: '100%' }}
+        >
+          {copyError}
         </Alert>
       </Snackbar>
     </>

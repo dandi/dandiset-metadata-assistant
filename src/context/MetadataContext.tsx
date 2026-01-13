@@ -68,13 +68,6 @@ export function MetadataProvider({ children }: { children: ReactNode }) {
     setModifiedMetadata(modifiedMetadataRef.current);
   }, [metadataRefreshCode]);
 
-  // if originalMetadata changes, reset modifiedMetadata and ref
-  useEffect(() => {
-    modifiedMetadataRef.current = originalMetadata;
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setMetadataRefreshCode(prev => prev + 1);
-  }, [originalMetadata]);
-
   const setApiKey = useCallback((key: string | null) => {
     if (key) {
       localStorage.setItem('dandi-api-key', key);
@@ -164,7 +157,7 @@ export function MetadataProvider({ children }: { children: ReactNode }) {
     apiKey,
     setApiKey,
     originalMetadata,
-    modifiedMetadata,
+    modifiedMetadata : modifiedMetadata || originalMetadata,
     setOriginalMetadata: setOriginalMetadata1,
     setModifiedMetadata: setModifiedMetadata1,
     clearModifications

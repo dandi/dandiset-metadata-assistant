@@ -1,6 +1,6 @@
-import { useEffect, useCallback, useState } from 'react';
+import { useEffect, useCallback, useState, useRef } from 'react';
 import { ThemeProvider, createTheme, CssBaseline } from '@mui/material';
-import { Box, AppBar, Toolbar, Typography, IconButton } from '@mui/material';
+import { Box, AppBar, Toolbar, Typography, IconButton, Alert, Snackbar } from '@mui/material';
 import InfoIcon from '@mui/icons-material/Info';
 import { MetadataProvider, useMetadataContext } from './context/MetadataContext';
 import logoIcon from '/logo-white.svg';
@@ -12,6 +12,12 @@ import { DandisetIndicator } from './components/Controls/DandisetIndicator';
 import { ApiKeyManager } from './components/Controls/ApiKeyManager';
 import AboutDialog from './components/About/AboutDialog';
 import { fetchDandisetVersionInfo } from './utils/api';
+import {
+  parseProposalFromUrl,
+  validateAndApplyProposal,
+  clearProposalFromUrl,
+  type ProposalData
+} from './core/proposalLink';
 
 // Create a custom theme with better colors for diffs
 const theme = createTheme({
@@ -83,10 +89,15 @@ function AppContent() {
     setError,
     clearModifications,
     apiKey,
-    setOriginalMetadata
+    setOriginalMetadata,
+    setModifiedMetadata
   } = useMetadataContext();
 
   const [aboutDialogOpen, setAboutDialogOpen] = useState(false);
+  const [proposalError, setProposalError] = useState<string | null>(null);
+  
+  // Track if we have a pending proposal to apply after metadata loads
+  const pendingProposalRef = useRef<ProposalData | null>(null);
 
   useEffect(() => {
     if (versionInfo && versionInfo.metadata) {
@@ -94,10 +105,66 @@ function AppContent() {
     }
   }, [versionInfo, setOriginalMetadata]);
 
+  // Apply pending proposal after version info and original metadata are set
+  useEffect(() => {
+    const applyPendingProposal = async () => {
+      console.log('[Proposal] Checking for pending proposal...', {
+        hasVersionInfo: !!versionInfo,
+        hasMetadata: !!versionInfo?.metadata,
+        hasPendingProposal: !!pendingProposalRef.current
+      });
+      
+      if (!versionInfo?.metadata || !pendingProposalRef.current) {
+        return;
+      }
+      
+      const proposal = pendingProposalRef.current;
+      pendingProposalRef.current = null; // Clear it so we don't re-apply
+      
+      console.log('[Proposal] Applying proposal...', {
+        proposalHash: proposal.h,
+        proposalDelta: proposal.d
+      });
+      
+      const result = await validateAndApplyProposal(proposal, versionInfo.metadata);
+      
+      console.log('[Proposal] Validation result:', result);
+      
+      if (result.success) {
+        // Apply the modified metadata
+        console.log('[Proposal] Setting modified metadata:', result.modifiedMetadata);
+        setModifiedMetadata(result.modifiedMetadata);
+        // Clear proposal from URL
+        clearProposalFromUrl();
+      } else {
+        console.error('[Proposal] Validation failed:', result.error);
+        setProposalError(result.error);
+        // Clear proposal from URL even on error
+        clearProposalFromUrl();
+      }
+    };
+    
+    applyPendingProposal();
+  }, [versionInfo, setModifiedMetadata]);
+
   // Load dandiset from URL on initial render
   useEffect(() => {
     const { dandisetId: urlDandisetId } = getUrlParams();
+    const proposal = parseProposalFromUrl();
+    
+    console.log('[Proposal] Initial URL parsing:', {
+      urlDandisetId,
+      hasProposal: !!proposal,
+      proposal: proposal ? { hash: proposal.h, delta: proposal.d } : null
+    });
+    
     if (urlDandisetId && !versionInfo) {
+      // Store proposal to apply after loading
+      if (proposal) {
+        console.log('[Proposal] Storing proposal for later application');
+        pendingProposalRef.current = proposal;
+      }
+      
       // Auto-load the dandiset from URL parameters (always use draft)
       const loadFromUrl = async () => {
         // Set dandiset ID immediately so main layout shows with loading spinner
@@ -113,6 +180,9 @@ function AppContent() {
           // Clear dandiset ID and URL params on error
           setDandisetId('');
           updateUrl(null);
+          // Clear pending proposal on error
+          pendingProposalRef.current = null;
+          clearProposalFromUrl();
         } finally {
           setIsLoading(false);
         }
@@ -224,6 +294,23 @@ function AppContent() {
         open={aboutDialogOpen}
         onClose={() => setAboutDialogOpen(false)}
       />
+
+      {/* Proposal Error Snackbar */}
+      <Snackbar
+        open={!!proposalError}
+        autoHideDuration={15000}
+        onClose={() => setProposalError(null)}
+        anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+      >
+        <Alert
+          onClose={() => setProposalError(null)}
+          severity="error"
+          variant="filled"
+          sx={{ width: '100%' }}
+        >
+          {proposalError}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 }
