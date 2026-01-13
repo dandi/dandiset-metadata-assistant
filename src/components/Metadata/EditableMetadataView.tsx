@@ -105,7 +105,7 @@ interface FieldDisplayProps {
   type: string;
   icon?: React.ComponentType<{ sx?: object }>;
   onRevert?: () => void;
-  onEdit?: (value: unknown) => void;
+  onEdit?: (value: unknown) => { success: boolean; error?: string };
 }
 
 /**
@@ -467,7 +467,7 @@ function SectionDisplay({
   changedPaths: Set<string>;
   isFieldModified: (key: string) => boolean;
   revertField: (key: string) => void;
-  onEditField: (key: string, value: unknown) => void;
+  onEditField: (key: string, value: unknown) => { success: boolean; error?: string };
 }) {
   const SectionIcon = section.icon;
   
@@ -773,9 +773,9 @@ export function EditableMetadataView() {
     );
   };
   
-  // Handler for editing fields
-  const handleEditField = (fieldKey: string, value: unknown) => {
-    modifyMetadata('set', fieldKey, value);
+  // Handler for editing fields - returns result for error handling
+  const handleEditField = (fieldKey: string, value: unknown): { success: boolean; error?: string } => {
+    return modifyMetadata('set', fieldKey, value);
   };
   
   // Count total modifications
