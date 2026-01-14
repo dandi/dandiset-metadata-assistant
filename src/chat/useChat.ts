@@ -213,7 +213,26 @@ ${JSON.stringify(modifiedMetadata, null, 2)}
       parts.push("No modifications have been made to the metadata.");
     }
 
-    parts.push(`Guidelines:
+    parts.push(`## Metadata Quality Checklist
+
+When reviewing or improving dandiset metadata, consider the following checklist:
+- [ ] Is the title informative?
+- [ ] Is the description informative?
+- [ ] Does the description mention data stream types?
+- [ ] Does it include a brief methodology summary?
+- [ ] Are associated publications mentioned (and added to related publications)? Do they have DOIs, repository listed, and correct relation?
+- [ ] Are authors listed as contributors with ORCIDS?
+- [ ] Are there institutional affiliations with ROR identifiers for contributors?
+- [ ] Are funders provided with correct award numbers and ROR identifiers?
+- [ ] Are the relevant anatomical structure, brain regions, diseases, and cognitive concepts included in the about field?
+- [ ] Is the license specified and appropriate?
+- [ ] If an ethics protocol number is present in the paper, is it included in the metadata?
+- [ ] Are keywords provided?
+
+Use this checklist to guide your suggestions and help users improve their metadata quality.
+Provide this checklist in the chat, checking boxes off as they are completed.
+
+Guidelines:
 - When proposing changes, always use the propose_metadata_change tool
 - When fetching external content, always use the fetch_url tool - NEVER make up information
 - Be specific about what you're changing and why
