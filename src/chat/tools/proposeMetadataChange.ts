@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { getReadOnlyFieldsSync } from "../../schemas/schemaService";
 import { QPTool, ToolExecutionContext, MetadataOperationType } from "../types";
+import { validateIdentifierInValue } from "./validateUrls";
 
 interface SingleChange {
   operation: MetadataOperationType;
@@ -152,6 +153,21 @@ export const proposeMetadataChangeTool: QPTool = {
         continue;
       }
 
+      // Validate URLs and identifiers (ORCID, ROR IDs) before applying changes
+      if (value !== undefined) {
+        const validationResult = await validateIdentifierInValue(path, value);
+        if (!validationResult.isValid) {
+          results.push({
+            success: false,
+            index: i,
+            path,
+            error: validationResult.error || `Invalid identifier or URL in value.`,
+          });
+          allSucceeded = false;
+          continue;
+        }
+      }
+
       // Apply the operation
       const modifyResult = context.modifyMetadata(operation, path, value);
 
@@ -271,6 +287,12 @@ Apply multiple keyword changes at once:
 - Users can review all pending changes before committing them
 - For backward compatibility, single change params (operation, path, value) are still supported
 - When using 'changes' array, each change is validated and applied independently
+
+**URL and Identifier Validation:**
+- ORCID identifiers are validated against the ORCID API to ensure they exist
+- ROR IDs (organization identifiers) are validated against the ROR API to ensure they exist
+- URLs in contributor profiles and other fields are checked to ensure they resolve
+- If validation fails, the change will be rejected with an error message explaining why
 
 **Read-only fields (cannot be modified):**
 id, schemaVersion, url, repository, identifier, dateCreated, dateModified,
