@@ -2,7 +2,7 @@
 import { useCallback, useState, useMemo, useRef, useEffect } from "react";
 import processCompletion from "./processCompletion";
 import { Chat, ChatMessage, QPTool, ToolExecutionContext, ModifyMetadataResult } from "./types";
-import { DEFAULT_MODEL } from "./availableModels";
+import { DEFAULT_MODEL, AVAILABLE_MODELS } from "./availableModels";
 import { proposeMetadataChangeTool } from "./tools/proposeMetadataChange";
 import { fetchUrlTool } from "./tools/fetchUrl";
 import { lookupOntologyTermTool } from "./tools/lookupOntologyTerm";
@@ -31,7 +31,8 @@ export type ChatAction =
       };
     }
   | { type: "clear" }
-  | { type: "revert_to_index"; index: number };
+  | { type: "revert_to_index"; index: number }
+  | { type: "replace_with_summary"; message: ChatMessage; preservedUsage: Chat['totalUsage'] };
 
 const emptyChat: Chat = {
   messages: [],
@@ -74,6 +75,12 @@ const chatReducer = (state: Chat, action: ChatAction): Chat => {
         ...state,
         messages: state.messages.slice(0, action.index + 1),
       };
+    case "replace_with_summary":
+      return {
+        ...state,
+        messages: [action.message],
+        totalUsage: action.preservedUsage,
+      };
     default:
       return state;
   }
@@ -87,11 +94,45 @@ interface UseChatOptions {
   version: string;
 }
 
+/**
+ * Convert conversation messages to plain text for summarization
+ */
+const convertConversationToPlainText = (messages: ChatMessage[]): string => {
+  const lines: string[] = [];
+  
+  for (const msg of messages) {
+    if (msg.role === "user") {
+      lines.push("USER:");
+      lines.push(typeof msg.content === "string" ? msg.content : JSON.stringify(msg.content));
+      lines.push("");
+    } else if (msg.role === "assistant") {
+      lines.push("ASSISTANT:");
+      if (msg.content) {
+        lines.push(typeof msg.content === "string" ? msg.content : JSON.stringify(msg.content));
+      }
+      if (msg.tool_calls) {
+        for (const tc of msg.tool_calls) {
+          lines.push(`[Tool Call: ${tc.function.name}]`);
+          lines.push(tc.function.arguments);
+        }
+      }
+      lines.push("");
+    } else if (msg.role === "tool") {
+      lines.push(`TOOL RESULT (${msg.name || msg.tool_call_id}):`);
+      lines.push(msg.content);
+      lines.push("");
+    }
+  }
+  
+  return lines.join("\n");
+};
+
 const useChat = (options: UseChatOptions) => {
   const { originalMetadata, modifiedMetadata, modifyMetadata, dandisetId, version } = options;
 
   const [chat, setChat] = useState<Chat>(emptyChat);
   const [responding, setResponding] = useState<boolean>(false);
+  const [compressing, setCompressing] = useState<boolean>(false);
   const [partialResponse, setPartialResponse] = useState<ChatMessage[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [metadataDocs, setMetadataDocs] = useState<string | null>(null);
@@ -365,6 +406,157 @@ Available tools:
     setResponding(false);
   }, []);
 
+  const compressConversation = useCallback(async () => {
+    if (chat.messages.length === 0) return;
+
+    // Create a new AbortController for this request
+    const abortController = new AbortController();
+    abortControllerRef.current = abortController;
+
+    setCompressing(true);
+    setError(null);
+
+    try {
+      // Convert conversation to plain text
+      const plainTextConversation = convertConversationToPlainText(chat.messages);
+
+      // Create summarization prompt
+      const summarizationPrompt = `Create a thorough summary of the following conversation that preserves all essential context, including:
+- All metadata changes that were proposed or discussed
+- Key questions asked and answers provided
+- Tool usage and results
+- Important decisions or recommendations
+- Any context needed for continuing to assist with this dandiset's metadata
+
+Here is the full conversation:
+
+${plainTextConversation}`;
+
+      // Build system message (same as normal to include metadata context)
+      const systemPrompt = buildSystemPrompt();
+
+      // Make API call for summary
+      const apiKey = getStoredOpenRouterApiKey();
+      const headers: Record<string, string> = {
+        "Content-Type": "application/json",
+      };
+      if (apiKey) {
+        headers["x-openrouter-key"] = apiKey;
+      }
+
+      const response = await fetch("https://qp-worker.neurosift.app/api/completion", {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          model: chat.model,
+          systemMessage: systemPrompt,
+          messages: [{ role: "user", content: summarizationPrompt }],
+          tools: [], // No tools for summarization
+          app: "dandiset-metadata-assistant",
+        }),
+        signal: abortController.signal,
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to compress conversation: ${response.statusText}`);
+      }
+
+      const reader = response.body?.getReader();
+      if (!reader) {
+        throw new Error("No response body");
+      }
+
+      // Parse the streaming response
+      let fullContent = "";
+      let promptTokens = 0;
+      let completionTokens = 0;
+      const decoder = new TextDecoder();
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        const chunk = decoder.decode(value, { stream: true });
+        const lines = chunk.split("\n");
+
+        for (const line of lines) {
+          if (line.startsWith("data: ")) {
+            const data = line.slice(6);
+            if (data === "[DONE]") continue;
+            try {
+              const parsed = JSON.parse(data);
+              const delta = parsed.choices?.[0]?.delta?.content;
+              if (delta) {
+                fullContent += delta;
+              }
+              // Get token usage from final chunk
+              if (parsed.usage) {
+                promptTokens = parsed.usage.prompt_tokens || 0;
+                completionTokens = parsed.usage.completion_tokens || 0;
+              }
+            } catch {
+              // Ignore parse errors
+            }
+          }
+        }
+      }
+
+      // Calculate cost for this model
+      const estimatedCost = getEstimatedCostForModel(chat.model, promptTokens, completionTokens);
+
+      // Create summary message with usage
+      const summaryMessage: ChatMessage = {
+        role: "assistant",
+        content: fullContent,
+        model: chat.model,
+        usage: {
+          promptTokens,
+          completionTokens,
+          estimatedCost,
+        },
+      };
+
+      // Preserve the existing token usage and add the new compression usage
+      const preservedUsage = {
+        promptTokens: chat.totalUsage.promptTokens + promptTokens,
+        completionTokens: chat.totalUsage.completionTokens + completionTokens,
+        estimatedCost: chat.totalUsage.estimatedCost + estimatedCost,
+      };
+
+      // Replace conversation with summary
+      setChat((prev) => chatReducer(prev, {
+        type: "replace_with_summary",
+        message: summaryMessage,
+        preservedUsage,
+      }));
+
+      setCompressing(false);
+    } catch (err) {
+      // Don't show error for aborted requests
+      if (err instanceof Error && err.name === "AbortError") {
+        setCompressing(false);
+        return;
+      }
+      console.error("Error compressing conversation:", err);
+      setError(
+        err instanceof Error ? `Error compressing conversation: ${err.message}` : "Error compressing conversation"
+      );
+      setCompressing(false);
+    } finally {
+      abortControllerRef.current = null;
+    }
+  }, [chat, buildSystemPrompt]);
+
+  // Helper function to get estimated cost (imported from processCompletion logic)
+  const getEstimatedCostForModel = useCallback((model: string, promptToks: number, completionToks: number): number => {
+    for (const m of AVAILABLE_MODELS) {
+      if (m.model === model) {
+        return (m.cost.prompt * promptToks + m.cost.completion * completionToks) / 1_000_000;
+      }
+    }
+    return 0;
+  }, []);
+
   // Fetch initial suggestions when metadata is loaded
   const fetchInitialSuggestions = useCallback(async () => {
     if (!originalMetadata || !modifiedMetadata || !dandisetId) return;
@@ -488,12 +680,14 @@ Available tools:
     chat,
     submitUserMessage,
     responding,
+    compressing,
     partialResponse,
     setChatModel,
     error,
     clearChat,
     abortResponse,
     revertToMessage,
+    compressConversation,
     tools,
     currentSuggestions,
     loadingInitialSuggestions,

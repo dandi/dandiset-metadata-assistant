@@ -17,6 +17,7 @@ import SettingsIcon from "@mui/icons-material/Settings";
 import RefreshIcon from "@mui/icons-material/Refresh";
 import StopIcon from "@mui/icons-material/Stop";
 import DownloadIcon from "@mui/icons-material/Download";
+import CompressIcon from "@mui/icons-material/Compress";
 import { useMetadataContext } from "../../context/MetadataContext";
 import useChat from "../../chat/useChat";
 import { CHEAP_MODELS } from "../../chat/availableModels";
@@ -25,6 +26,7 @@ import ChatInput from "./ChatInput";
 import MessageItem from "./MessageItem";
 import ChatSettingsDialog from "./ChatSettingsDialog";
 import SuggestedPrompts from "./SuggestedPrompts";
+import { CompressConfirmDialog } from "./CompressConfirmDialog";
 
 export function ChatPanel() {
   const {
@@ -41,12 +43,14 @@ export function ChatPanel() {
     chat,
     submitUserMessage,
     responding,
+    compressing,
     partialResponse,
     setChatModel,
     error,
     clearChat,
     abortResponse,
     revertToMessage,
+    compressConversation,
     currentSuggestions,
     loadingInitialSuggestions,
   } = useChat({
@@ -59,8 +63,16 @@ export function ChatPanel() {
 
   const [newPrompt, setNewPrompt] = useState<string>("");
   const [settingsOpen, setSettingsOpen] = useState<boolean>(false);
+  const [compressDialogOpen, setCompressDialogOpen] = useState<boolean>(false);
   const [errorExpanded, setErrorExpanded] = useState<boolean>(false);
   const conversationRef = useRef<HTMLDivElement>(null);
+
+  // Get compression threshold from URL query parameter (for testing)
+  const compressionThreshold = useMemo(() => {
+    const params = new URLSearchParams(window.location.search);
+    const testThreshold = params.get('compressThreshold');
+    return testThreshold ? parseInt(testThreshold, 10) : 35;
+  }, []);
 
   // Check if API key is required but not present
   const requiresApiKey = !CHEAP_MODELS.includes(chat.model);
@@ -87,15 +99,28 @@ export function ChatPanel() {
   }, [allMessages]);
 
   const handleSubmit = useCallback(() => {
-    if (newPrompt.trim() === "" || responding || needsApiKey) return;
+    if (newPrompt.trim() === "" || responding || compressing || needsApiKey) return;
     submitUserMessage(newPrompt.trim());
     setNewPrompt("");
-  }, [newPrompt, submitUserMessage, responding, needsApiKey]);
+  }, [newPrompt, submitUserMessage, responding, compressing, needsApiKey]);
 
   const handleNewChat = useCallback(() => {
     clearChat();
     setNewPrompt("");
   }, [clearChat]);
+
+  const handleCompressClick = useCallback(() => {
+    setCompressDialogOpen(true);
+  }, []);
+
+  const handleCompressConfirm = useCallback(async () => {
+    setCompressDialogOpen(false);
+    await compressConversation();
+  }, [compressConversation]);
+
+  const handleCompressCancel = useCallback(() => {
+    setCompressDialogOpen(false);
+  }, []);
 
   const handleDownloadChat = useCallback(() => {
     const lines: string[] = [];
@@ -190,6 +215,17 @@ export function ChatPanel() {
             onClick={() => setSettingsOpen(true)}
             sx={{ fontSize: "0.7rem", cursor: "pointer" }}
           />
+          <Tooltip title="Compress Conversation">
+            <span>
+              <IconButton
+                size="small"
+                onClick={handleCompressClick}
+                disabled={chat.messages.length < 3 || compressing}
+              >
+                <CompressIcon fontSize="small" />
+              </IconButton>
+            </span>
+          </Tooltip>
           <Tooltip title="Download Chat">
             <span>
               <IconButton
@@ -357,6 +393,29 @@ export function ChatPanel() {
                 </Paper>
               </Box>
             )}
+            {compressing && (
+              <Box sx={{ display: "flex", justifyContent: "flex-start", mb: 2 }}>
+                <Paper
+                  elevation={1}
+                  sx={{
+                    p: 2,
+                    backgroundColor: "grey.100",
+                    borderRadius: 2,
+                    borderTopLeftRadius: 0,
+                  }}
+                >
+                  <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                    <CircularProgress size={16} />
+                    <Typography
+                      variant="body2"
+                      sx={{ fontStyle: "italic", color: "text.secondary" }}
+                    >
+                      Compressing conversation...
+                    </Typography>
+                  </Box>
+                </Paper>
+              </Box>
+            )}
           </>
         )}
       </Box>
@@ -412,14 +471,34 @@ export function ChatPanel() {
         </Alert>
       )}
 
+      {/* Compression Suggestion Warning */}
+      {chat.messages.length > compressionThreshold && !compressing && (
+        <Alert
+          severity="info"
+          sx={{ mx: 2, mb: 1 }}
+          action={
+            <Button
+              size="small"
+              color="inherit"
+              onClick={handleCompressClick}
+              startIcon={<CompressIcon />}
+            >
+              Compress
+            </Button>
+          }
+        >
+          The conversation is getting long ({chat.messages.length} messages). Consider compressing it to maintain context while reducing token usage.
+        </Alert>
+      )}
+
       {/* Suggested Prompts */}
-      {hasMetadata && !responding && !needsApiKey && (
+      {hasMetadata && !responding && !compressing && !needsApiKey && (
         <SuggestedPrompts
           suggestions={currentSuggestions}
           onSuggestionClick={(suggestion) => {
             submitUserMessage(suggestion);
           }}
-          disabled={responding || loadingInitialSuggestions}
+          disabled={responding || compressing || loadingInitialSuggestions}
         />
       )}
 
@@ -449,13 +528,15 @@ export function ChatPanel() {
         value={newPrompt}
         onChange={setNewPrompt}
         onSubmit={handleSubmit}
-        disabled={responding || !hasMetadata || needsApiKey}
+        disabled={responding || compressing || !hasMetadata || needsApiKey}
         placeholder={
           !hasMetadata
             ? "Load a dandiset first..."
             : needsApiKey
               ? "API key required..."
-              : "Ask about metadata or request changes..."
+              : compressing
+                ? "Compressing conversation..."
+                : "Ask about metadata or request changes..."
         }
       />
 
@@ -488,6 +569,14 @@ export function ChatPanel() {
         onClose={() => setSettingsOpen(false)}
         currentModel={chat.model}
         onModelChange={setChatModel}
+      />
+
+      {/* Compress Confirmation Dialog */}
+      <CompressConfirmDialog
+        open={compressDialogOpen}
+        onClose={handleCompressCancel}
+        onConfirm={handleCompressConfirm}
+        messageCount={chat.messages.length}
       />
     </Box>
   );
