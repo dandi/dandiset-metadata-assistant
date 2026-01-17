@@ -5,7 +5,7 @@ import InfoIcon from '@mui/icons-material/Info';
 import { MetadataProvider, useMetadataContext } from './context/MetadataContext';
 import logoIcon from '/logo-white.svg';
 import { MainLayout } from './components/Layout/MainLayout';
-import { ChatPanel } from './components/Chat/ChatPanel';
+import { DandisetChatPanel } from './components/Chat/DandisetChatPanel';
 import { MetadataPanel } from './components/Metadata/MetadataPanel';
 import { WelcomePage } from './components/Welcome/WelcomePage';
 import { DandisetIndicator } from './components/Controls/DandisetIndicator';
@@ -303,7 +303,7 @@ function AppContent() {
           <MetadataPanel isReviewMode={true} onExitReviewMode={handleExitReviewMode} />
         ) : (
           <MainLayout
-            leftPanel={<ChatPanel />}
+            leftPanel={<DandisetChatPanel />}
             rightPanel={<MetadataPanel />}
             initialLeftWidth={50}
             minLeftWidth={25}

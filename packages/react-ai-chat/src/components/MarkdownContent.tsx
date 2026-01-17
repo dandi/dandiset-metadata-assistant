@@ -24,7 +24,7 @@ const MarkdownContent: FunctionComponent<MarkdownContentProps> = ({
     }
     return plugins;
   }, [doRehypeRaw]);
-  
+
   const remarkPlugins = useMemo(() => {
     const plugins: any[] = [remarkGfm, remarkMath];
     return plugins;
@@ -91,7 +91,11 @@ const MarkdownContent: FunctionComponent<MarkdownContentProps> = ({
             <code
               {...rest}
               className={className}
-              style={{ background: "#eee", padding: "2px 4px", borderRadius: "3px" }}
+              style={{
+                background: "#eee",
+                padding: "2px 4px",
+                borderRadius: "3px",
+              }}
             >
               {children}
             </code>

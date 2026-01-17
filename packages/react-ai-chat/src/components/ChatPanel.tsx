@@ -18,27 +18,35 @@ import RefreshIcon from "@mui/icons-material/Refresh";
 import StopIcon from "@mui/icons-material/Stop";
 import DownloadIcon from "@mui/icons-material/Download";
 import CompressIcon from "@mui/icons-material/Compress";
-import { useMetadataContext } from "../../context/MetadataContext";
-import useChat from "../../chat/useChat";
-import { CHEAP_MODELS } from "../../chat/availableModels";
-import { getStoredOpenRouterApiKey } from "../../chat/apiKeyStorage";
 import ChatInput from "./ChatInput";
 import MessageItem from "./MessageItem";
-import ChatSettingsDialog from "./ChatSettingsDialog";
 import SuggestedPrompts from "./SuggestedPrompts";
-import { CompressConfirmDialog } from "./CompressConfirmDialog";
+import CompressConfirmDialog from "./CompressConfirmDialog";
+import ChatSettingsDialog from "./ChatSettingsDialog";
+import useChat from "../hooks/useChat";
+import { ChatPanelProps } from "../types";
 
-export function ChatPanel() {
-  const {
-    versionInfo,
-    originalMetadata,
-    modifiedMetadata,
-    dandisetId,
-    version,
-    modifyMetadata,
-    isLoading,
-  } = useMetadataContext();
-
+export function ChatPanel({
+  onCompletion,
+  tools = [],
+  toolContext = {},
+  systemPrompt = "",
+  availableModels = [],
+  defaultModel,
+  cheapModels = [],
+  title = "Assistant",
+  placeholder = "Type your message...",
+  emptyStateContent,
+  enableSuggestions = true,
+  enableCompression = true,
+  enableExport = true,
+  enableModelSelection = true,
+  onMessageSent,
+  onError,
+  onChatCleared,
+  onModelChange,
+  isLoading = false,
+}: ChatPanelProps) {
   const {
     chat,
     submitUserMessage,
@@ -52,36 +60,37 @@ export function ChatPanel() {
     revertToMessage,
     compressConversation,
     currentSuggestions,
-    loadingInitialSuggestions,
   } = useChat({
-    originalMetadata,
-    modifiedMetadata,
-    modifyMetadata,
-    dandisetId,
-    version,
+    onCompletion,
+    tools,
+    toolContext,
+    systemPrompt,
+    defaultModel: defaultModel || availableModels[0]?.model || "default",
+    availableModels,
   });
 
   const [newPrompt, setNewPrompt] = useState<string>("");
-  const [settingsOpen, setSettingsOpen] = useState<boolean>(false);
   const [compressDialogOpen, setCompressDialogOpen] = useState<boolean>(false);
+  const [settingsDialogOpen, setSettingsDialogOpen] = useState<boolean>(false);
   const [errorExpanded, setErrorExpanded] = useState<boolean>(false);
   const conversationRef = useRef<HTMLDivElement>(null);
 
-  // Get compression threshold from URL query parameter (for testing)
-  const compressionThreshold = useMemo(() => {
-    const params = new URLSearchParams(window.location.search);
-    const testThreshold = params.get('compressThreshold');
-    return testThreshold ? parseInt(testThreshold, 10) : 35;
-  }, []);
+  // Compression threshold (number of messages before suggesting compression)
+  const compressionThreshold = 35;
 
-  // Check if API key is required but not present
-  const requiresApiKey = !CHEAP_MODELS.includes(chat.model);
-  const hasApiKey = !!getStoredOpenRouterApiKey();
-  const needsApiKey = requiresApiKey && !hasApiKey;
+  // Call error callback when error changes
+  useEffect(() => {
+    if (error && onError) {
+      onError(new Error(error));
+    }
+  }, [error, onError]);
 
   // All messages including partial response
   const allMessages = useMemo(() => {
-    const messages = chat.messages.map((m) => ({ message: m, inProgress: false }));
+    const messages = chat.messages.map((m) => ({
+      message: m,
+      inProgress: false,
+    }));
     if (responding && partialResponse) {
       return [
         ...messages,
@@ -99,15 +108,18 @@ export function ChatPanel() {
   }, [allMessages]);
 
   const handleSubmit = useCallback(() => {
-    if (newPrompt.trim() === "" || responding || compressing || needsApiKey) return;
-    submitUserMessage(newPrompt.trim());
+    if (newPrompt.trim() === "" || responding || compressing) return;
+    const message = newPrompt.trim();
+    submitUserMessage(message);
     setNewPrompt("");
-  }, [newPrompt, submitUserMessage, responding, compressing, needsApiKey]);
+    onMessageSent?.(message);
+  }, [newPrompt, submitUserMessage, responding, compressing, onMessageSent]);
 
   const handleNewChat = useCallback(() => {
     clearChat();
     setNewPrompt("");
-  }, [clearChat]);
+    onChatCleared?.();
+  }, [clearChat, onChatCleared]);
 
   const handleCompressClick = useCallback(() => {
     setCompressDialogOpen(true);
@@ -122,10 +134,25 @@ export function ChatPanel() {
     setCompressDialogOpen(false);
   }, []);
 
+  const handleSettingsClick = useCallback(() => {
+    setSettingsDialogOpen(true);
+  }, []);
+
+  const handleSettingsClose = useCallback(() => {
+    setSettingsDialogOpen(false);
+  }, []);
+
+  const handleModelChange = useCallback(
+    (model: string) => {
+      setChatModel(model);
+      onModelChange?.(model);
+    },
+    [setChatModel, onModelChange]
+  );
+
   const handleDownloadChat = useCallback(() => {
     const lines: string[] = [];
-    lines.push(`Dandiset Metadata Assistant - Chat Export`);
-    lines.push(`Dandiset: ${dandisetId} (${version})`);
+    lines.push(`Chat Export`);
     lines.push(`Model: ${chat.model}`);
     lines.push(`Date: ${new Date().toISOString()}`);
     lines.push(`${"=".repeat(50)}\n`);
@@ -133,12 +160,20 @@ export function ChatPanel() {
     for (const msg of chat.messages) {
       if (msg.role === "user") {
         lines.push(`USER:`);
-        lines.push(typeof msg.content === "string" ? msg.content : JSON.stringify(msg.content));
+        lines.push(
+          typeof msg.content === "string"
+            ? msg.content
+            : JSON.stringify(msg.content)
+        );
         lines.push("");
       } else if (msg.role === "assistant") {
         lines.push(`ASSISTANT:`);
         if (msg.content) {
-          lines.push(typeof msg.content === "string" ? msg.content : JSON.stringify(msg.content));
+          lines.push(
+            typeof msg.content === "string"
+              ? msg.content
+              : JSON.stringify(msg.content)
+          );
         }
         if (msg.tool_calls) {
           for (const tc of msg.tool_calls) {
@@ -158,14 +193,41 @@ export function ChatPanel() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `dandiset-${dandisetId}-chat-${new Date().toISOString().slice(0, 10)}.txt`;
+    a.download = `chat-${new Date().toISOString().slice(0, 10)}.txt`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
-  }, [chat.messages, chat.model, dandisetId, version]);
+  }, [chat.messages, chat.model]);
 
-  const hasMetadata = !!versionInfo?.metadata;
+  // Get display label for current model
+  const currentModelLabel = useMemo(() => {
+    const model = availableModels.find((m) => m.model === chat.model);
+    return model?.label || chat.model.split("/").pop() || chat.model;
+  }, [availableModels, chat.model]);
+
+  // Default empty state
+  const defaultEmptyState = (
+    <Paper
+      elevation={0}
+      sx={{
+        p: 4,
+        textAlign: "center",
+        backgroundColor: "grey.50",
+        borderRadius: 2,
+        m: "auto",
+        maxWidth: 400,
+      }}
+    >
+      <SmartToyIcon sx={{ fontSize: 48, color: "primary.main", mb: 2 }} />
+      <Typography variant="h6" color="text.secondary" gutterBottom>
+        Ready to Help!
+      </Typography>
+      <Typography variant="body2" color="text.secondary">
+        Start a conversation by typing a message below.
+      </Typography>
+    </Paper>
+  );
 
   return (
     <Box
@@ -190,10 +252,15 @@ export function ChatPanel() {
       >
         <Typography
           variant="h6"
-          sx={{ display: "flex", alignItems: "center", gap: 1, userSelect: "none" }}
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            gap: 1,
+            userSelect: "none",
+          }}
         >
           <SmartToyIcon color="primary" />
-          Assistant
+          {title}
         </Typography>
         <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
           {responding && (
@@ -208,35 +275,41 @@ export function ChatPanel() {
               Stop
             </Button>
           )}
-          <Chip
-            label={chat.model.split("/")[1]}
-            size="small"
-            variant="outlined"
-            onClick={() => setSettingsOpen(true)}
-            sx={{ fontSize: "0.7rem", cursor: "pointer" }}
-          />
-          <Tooltip title="Compress Conversation">
-            <span>
-              <IconButton
-                size="small"
-                onClick={handleCompressClick}
-                disabled={chat.messages.length < 3 || compressing}
-              >
-                <CompressIcon fontSize="small" />
-              </IconButton>
-            </span>
-          </Tooltip>
-          <Tooltip title="Download Chat">
-            <span>
-              <IconButton
-                size="small"
-                onClick={handleDownloadChat}
-                disabled={chat.messages.length === 0}
-              >
-                <DownloadIcon fontSize="small" />
-              </IconButton>
-            </span>
-          </Tooltip>
+          {enableModelSelection && availableModels.length > 0 && (
+            <Chip
+              label={currentModelLabel}
+              size="small"
+              variant="outlined"
+              onClick={handleSettingsClick}
+              sx={{ fontSize: "0.7rem", cursor: "pointer" }}
+            />
+          )}
+          {enableCompression && (
+            <Tooltip title="Compress Conversation">
+              <span>
+                <IconButton
+                  size="small"
+                  onClick={handleCompressClick}
+                  disabled={chat.messages.length < 3 || compressing}
+                >
+                  <CompressIcon fontSize="small" />
+                </IconButton>
+              </span>
+            </Tooltip>
+          )}
+          {enableExport && (
+            <Tooltip title="Download Chat">
+              <span>
+                <IconButton
+                  size="small"
+                  onClick={handleDownloadChat}
+                  disabled={chat.messages.length === 0}
+                >
+                  <DownloadIcon fontSize="small" />
+                </IconButton>
+              </span>
+            </Tooltip>
+          )}
           <Tooltip title="New Chat">
             <span>
               <IconButton
@@ -248,11 +321,13 @@ export function ChatPanel() {
               </IconButton>
             </span>
           </Tooltip>
-          <Tooltip title="Settings">
-            <IconButton size="small" onClick={() => setSettingsOpen(true)}>
-              <SettingsIcon fontSize="small" />
-            </IconButton>
-          </Tooltip>
+          {enableModelSelection && availableModels.length > 1 && (
+            <Tooltip title="Settings">
+              <IconButton size="small" onClick={handleSettingsClick}>
+                <SettingsIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+          )}
         </Box>
       </Box>
 
@@ -267,89 +342,24 @@ export function ChatPanel() {
           flexDirection: "column",
         }}
       >
-        {!hasMetadata ? (
-          isLoading ? (
-            <Box
-              sx={{
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-                justifyContent: "center",
-                m: "auto",
-                gap: 2,
-              }}
-            >
-              <CircularProgress />
-              <Typography variant="body2" color="text.secondary">
-                Loading dandiset...
-              </Typography>
-            </Box>
-          ) : (
-            <Paper
-              elevation={0}
-              sx={{
-                p: 4,
-                textAlign: "center",
-                backgroundColor: "grey.50",
-                borderRadius: 2,
-                m: "auto",
-                maxWidth: 400,
-              }}
-            >
-              <SmartToyIcon sx={{ fontSize: 48, color: "grey.400", mb: 2 }} />
-              <Typography variant="h6" color="text.secondary" gutterBottom>
-                Load a Dandiset First
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                Load a dandiset using the welcome page to start chatting with the
-                AI assistant about metadata.
-              </Typography>
-            </Paper>
-          )
-        ) : allMessages.length === 0 ? (
-          <Paper
-            elevation={0}
+        {isLoading ? (
+          <Box
             sx={{
-              p: 4,
-              textAlign: "center",
-              backgroundColor: "grey.50",
-              borderRadius: 2,
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              justifyContent: "center",
               m: "auto",
-              maxWidth: 400,
+              gap: 2,
             }}
           >
-            <SmartToyIcon sx={{ fontSize: 48, color: "primary.main", mb: 2 }} />
-            <Typography variant="h6" color="text.secondary" gutterBottom>
-              Ready to Help!
+            <CircularProgress />
+            <Typography variant="body2" color="text.secondary">
+              Loading...
             </Typography>
-            <Typography variant="body2" color="text.secondary" paragraph>
-              Ask me questions about your dandiset metadata or request changes.
-              I can help you:
-            </Typography>
-            <Box
-              component="ul"
-              sx={{
-                textAlign: "left",
-                pl: 2,
-                color: "text.secondary",
-                fontSize: "0.875rem",
-              }}
-            >
-              <li>Review and improve metadata fields</li>
-              <li>Add missing information</li>
-              <li>Fix formatting or compliance issues</li>
-              <li>Suggest better descriptions</li>
-            </Box>
-            {JSON.stringify(originalMetadata) !== JSON.stringify(modifiedMetadata) && (
-              <Typography
-                variant="body2"
-                color="text.secondary"
-                sx={{ mt: 2, fontStyle: "italic" }}
-              >
-                You have pending metadata changes that have not been committed yet.
-              </Typography>
-            )}
-          </Paper>
+          </Box>
+        ) : allMessages.length === 0 ? (
+          emptyStateContent || defaultEmptyState
         ) : (
           <>
             {allMessages.map(({ message, inProgress }, index) => {
@@ -357,7 +367,10 @@ export function ChatPanel() {
               const isFromChat = index < chat.messages.length;
               const chatIndex = isFromChat ? index : -1;
               // Can revert if it's not the last message and not in progress
-              const canRevert = isFromChat && index < chat.messages.length - 1 && !responding;
+              const canRevert =
+                isFromChat &&
+                index < chat.messages.length - 1 &&
+                !responding;
 
               return (
                 <MessageItem
@@ -371,7 +384,9 @@ export function ChatPanel() {
               );
             })}
             {responding && !partialResponse && (
-              <Box sx={{ display: "flex", justifyContent: "flex-start", mb: 2 }}>
+              <Box
+                sx={{ display: "flex", justifyContent: "flex-start", mb: 2 }}
+              >
                 <Paper
                   elevation={1}
                   sx={{
@@ -394,7 +409,9 @@ export function ChatPanel() {
               </Box>
             )}
             {compressing && (
-              <Box sx={{ display: "flex", justifyContent: "flex-start", mb: 2 }}>
+              <Box
+                sx={{ display: "flex", justifyContent: "flex-start", mb: 2 }}
+              >
                 <Paper
                   elevation={1}
                   sx={{
@@ -451,76 +468,40 @@ export function ChatPanel() {
         </Alert>
       )}
 
-      {/* API Key Warning */}
-      {needsApiKey && hasMetadata && (
-        <Alert
-          severity="warning"
-          sx={{ mx: 2, mb: 1 }}
-          action={
-            <IconButton
-              size="small"
-              color="inherit"
-              onClick={() => setSettingsOpen(true)}
-            >
-              <SettingsIcon fontSize="small" />
-            </IconButton>
-          }
-        >
-          This model requires an OpenRouter API key. Click settings to add one
-          or switch to a free model.
-        </Alert>
-      )}
-
       {/* Compression Suggestion Warning */}
-      {chat.messages.length > compressionThreshold && !compressing && (
-        <Alert
-          severity="info"
-          sx={{ mx: 2, mb: 1 }}
-          action={
-            <Button
-              size="small"
-              color="inherit"
-              onClick={handleCompressClick}
-              startIcon={<CompressIcon />}
-            >
-              Compress
-            </Button>
-          }
-        >
-          The conversation is getting long ({chat.messages.length} messages). Consider compressing it to maintain context while reducing token usage.
-        </Alert>
-      )}
+      {enableCompression &&
+        chat.messages.length > compressionThreshold &&
+        !compressing && (
+          <Alert
+            severity="info"
+            sx={{ mx: 2, mb: 1 }}
+            action={
+              <Button
+                size="small"
+                color="inherit"
+                onClick={handleCompressClick}
+                startIcon={<CompressIcon />}
+              >
+                Compress
+              </Button>
+            }
+          >
+            The conversation is getting long ({chat.messages.length} messages).
+            Consider compressing it to maintain context while reducing token
+            usage.
+          </Alert>
+        )}
 
       {/* Suggested Prompts */}
-      {hasMetadata && !responding && !compressing && !needsApiKey && (
+      {enableSuggestions && !responding && !compressing && (
         <SuggestedPrompts
           suggestions={currentSuggestions}
           onSuggestionClick={(suggestion) => {
             submitUserMessage(suggestion);
+            onMessageSent?.(suggestion);
           }}
-          disabled={responding || compressing || loadingInitialSuggestions}
+          disabled={responding || compressing}
         />
-      )}
-
-      {/* Loading Initial Suggestions Indicator */}
-      {hasMetadata && loadingInitialSuggestions && allMessages.length === 0 && (
-        <Box
-          sx={{
-            display: "flex",
-            alignItems: "center",
-            gap: 1,
-            px: 2,
-            py: 1,
-            borderTop: 1,
-            borderColor: "divider",
-            backgroundColor: "grey.50",
-          }}
-        >
-          <CircularProgress size={14} />
-          <Typography variant="body2" color="text.secondary" sx={{ fontSize: "0.75rem" }}>
-            Loading suggestions...
-          </Typography>
-        </Box>
       )}
 
       {/* Input Area */}
@@ -528,15 +509,13 @@ export function ChatPanel() {
         value={newPrompt}
         onChange={setNewPrompt}
         onSubmit={handleSubmit}
-        disabled={responding || compressing || !hasMetadata || needsApiKey}
+        disabled={responding || compressing || isLoading}
         placeholder={
-          !hasMetadata
-            ? "Load a dandiset first..."
-            : needsApiKey
-              ? "API key required..."
-              : compressing
-                ? "Compressing conversation..."
-                : "Ask about metadata or request changes..."
+          isLoading
+            ? "Loading..."
+            : compressing
+              ? "Compressing conversation..."
+              : placeholder
         }
       />
 
@@ -563,21 +542,29 @@ export function ChatPanel() {
         </Box>
       )}
 
-      {/* Settings Dialog */}
-      <ChatSettingsDialog
-        open={settingsOpen}
-        onClose={() => setSettingsOpen(false)}
-        currentModel={chat.model}
-        onModelChange={setChatModel}
-      />
-
       {/* Compress Confirmation Dialog */}
-      <CompressConfirmDialog
-        open={compressDialogOpen}
-        onClose={handleCompressCancel}
-        onConfirm={handleCompressConfirm}
-        messageCount={chat.messages.length}
-      />
+      {enableCompression && (
+        <CompressConfirmDialog
+          open={compressDialogOpen}
+          onClose={handleCompressCancel}
+          onConfirm={handleCompressConfirm}
+          messageCount={chat.messages.length}
+        />
+      )}
+
+      {/* Settings Dialog */}
+      {enableModelSelection && availableModels.length > 0 && (
+        <ChatSettingsDialog
+          open={settingsDialogOpen}
+          onClose={handleSettingsClose}
+          currentModel={chat.model}
+          onModelChange={handleModelChange}
+          availableModels={availableModels}
+          cheapModels={cheapModels}
+        />
+      )}
     </Box>
   );
 }
+
+export default ChatPanel;

@@ -1,5 +1,32 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { ORResponse, ORToolCall } from "./openRouterTypes";
+
+/**
+ * OpenRouter tool call type
+ */
+export interface ORToolCall {
+  id: string;
+  type: "function";
+  function: {
+    name: string;
+    arguments: string;
+  };
+}
+
+/**
+ * OpenRouter response type
+ */
+interface ORResponse {
+  choices: {
+    delta: {
+      content?: string;
+      tool_calls?: ORToolCall[];
+    };
+  }[];
+  usage?: {
+    prompt_tokens?: number;
+    completion_tokens?: number;
+  };
+}
 
 export interface StreamParseResult {
   assistantContent: string;

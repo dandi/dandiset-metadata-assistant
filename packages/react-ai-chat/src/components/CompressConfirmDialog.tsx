@@ -25,9 +25,9 @@ export function CompressConfirmDialog({
       <DialogTitle>Compress Conversation?</DialogTitle>
       <DialogContent>
         <DialogContentText>
-          This will replace the entire conversation ({messageCount} messages) with
-          a thorough summary. The summary will preserve key context from all
-          messages, tool calls, and metadata changes.
+          This will replace the entire conversation ({messageCount} messages)
+          with a thorough summary. The summary will preserve key context from
+          all messages, tool calls, and changes.
         </DialogContentText>
         <DialogContentText sx={{ mt: 2, fontWeight: 500 }}>
           This action cannot be undone. Continue?
@@ -44,3 +44,5 @@ export function CompressConfirmDialog({
     </Dialog>
   );
 }
+
+export default CompressConfirmDialog;

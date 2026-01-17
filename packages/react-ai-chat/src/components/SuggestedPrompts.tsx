@@ -35,12 +35,12 @@ const SuggestedPrompts: FunctionComponent<SuggestedPromptsProps> = ({
         alignItems: "center",
       }}
     >
-      <LightbulbOutlinedIcon 
-        sx={{ 
-          fontSize: 16, 
+      <LightbulbOutlinedIcon
+        sx={{
+          fontSize: 16,
           color: "text.secondary",
           mr: 0.5,
-        }} 
+        }}
       />
       {suggestions.map((suggestion, index) => (
         <Chip
@@ -59,10 +59,12 @@ const SuggestedPrompts: FunctionComponent<SuggestedPromptsProps> = ({
               whiteSpace: "normal",
               lineHeight: 1.3,
             },
-            "&:hover": disabled ? {} : {
-              backgroundColor: "primary.lighter",
-              borderColor: "primary.main",
-            },
+            "&:hover": disabled
+              ? {}
+              : {
+                  backgroundColor: "primary.lighter",
+                  borderColor: "primary.main",
+                },
             transition: "all 0.2s",
           }}
         />

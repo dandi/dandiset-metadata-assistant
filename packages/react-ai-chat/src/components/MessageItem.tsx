@@ -1,5 +1,13 @@
 import { FunctionComponent, useState } from "react";
-import { Box, CircularProgress, Collapse, IconButton, Paper, Tooltip, Typography } from "@mui/material";
+import {
+  Box,
+  CircularProgress,
+  Collapse,
+  IconButton,
+  Paper,
+  Tooltip,
+  Typography,
+} from "@mui/material";
 import PersonIcon from "@mui/icons-material/Person";
 import SmartToyIcon from "@mui/icons-material/SmartToy";
 import BuildIcon from "@mui/icons-material/Build";
@@ -7,8 +15,8 @@ import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import ExpandLessIcon from "@mui/icons-material/ExpandLess";
 import HistoryIcon from "@mui/icons-material/History";
 import MarkdownContent from "./MarkdownContent";
-import { ChatMessage, ORContentPart } from "../../chat/types";
-import { parseSuggestions } from "../../chat/parseSuggestions";
+import { ChatMessage, ContentPart } from "../types";
+import { parseSuggestions } from "../utils/parseSuggestions";
 
 interface MessageItemProps {
   message: ChatMessage;
@@ -19,7 +27,7 @@ interface MessageItemProps {
 }
 
 const messageContentToString = (
-  content: string | ORContentPart[] | null
+  content: string | ContentPart[] | null
 ): string => {
   if (!content) return "";
   if (typeof content === "string") return content;
@@ -44,20 +52,16 @@ const stripSuggestionsFromContent = (content: string): string => {
 /**
  * Get a short summary for a tool call based on its name and arguments
  */
-const getToolCallSummary = (
-  name: string,
-  argsString: string
-): string => {
+const getToolCallSummary = (name: string, argsString: string): string => {
   try {
     const args = JSON.parse(argsString);
-    switch (name) {
-      case "fetch_url":
-        return args.url ? `fetch_url: ${args.url}` : "fetch_url";
-      case "propose_metadata_change":
-        return args.path ? `propose_metadata_change: ${args.path}` : "propose_metadata_change";
-      default:
-        return name;
+    // Generic summary - just show first string argument value if any
+    for (const key of ["url", "path", "name", "query", "id"]) {
+      if (args[key] && typeof args[key] === "string") {
+        return `${name}: ${args[key]}`;
+      }
     }
+    return name;
   } catch {
     return name;
   }
@@ -187,7 +191,9 @@ interface ToolResultItemProps {
   message: ChatMessage & { role: "tool" };
 }
 
-const ToolResultItem: FunctionComponent<ToolResultItemProps> = ({ message }) => {
+const ToolResultItem: FunctionComponent<ToolResultItemProps> = ({
+  message,
+}) => {
   const [expanded, setExpanded] = useState(false);
 
   // Parse tool result for display
@@ -208,7 +214,9 @@ const ToolResultItem: FunctionComponent<ToolResultItemProps> = ({ message }) => 
   }
 
   const isLongContent = resultContent.length > 150;
-  const previewContent = isLongContent ? truncateContent(resultContent) : resultContent;
+  const previewContent = isLongContent
+    ? truncateContent(resultContent)
+    : resultContent;
 
   return (
     <Box
@@ -388,7 +396,9 @@ const MessageItem: FunctionComponent<MessageItemProps> = ({
           }}
         >
           <Box sx={{ display: "flex", alignItems: "flex-start", gap: 1 }}>
-            <SmartToyIcon sx={{ fontSize: 20, mt: 0.5, color: "primary.main" }} />
+            <SmartToyIcon
+              sx={{ fontSize: 20, mt: 0.5, color: "primary.main" }}
+            />
             <Box sx={{ flex: 1, minWidth: 0 }}>
               {content && (
                 <Box
@@ -407,7 +417,10 @@ const MessageItem: FunctionComponent<MessageItemProps> = ({
                     "& ul, & ol": { mt: 0, mb: 1, pl: 2 },
                   }}
                 >
-                  <MarkdownContent content={content} doRehypeRaw={!inProgress} />
+                  <MarkdownContent
+                    content={content}
+                    doRehypeRaw={!inProgress}
+                  />
                 </Box>
               )}
               {hasToolCalls && (
@@ -425,7 +438,10 @@ const MessageItem: FunctionComponent<MessageItemProps> = ({
               {inProgress && !content && !hasToolCalls && (
                 <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
                   <CircularProgress size={16} />
-                  <Typography variant="body2" sx={{ fontStyle: "italic", color: "text.secondary" }}>
+                  <Typography
+                    variant="body2"
+                    sx={{ fontStyle: "italic", color: "text.secondary" }}
+                  >
                     Thinking...
                   </Typography>
                 </Box>
