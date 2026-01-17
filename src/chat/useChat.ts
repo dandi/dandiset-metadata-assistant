@@ -326,11 +326,19 @@ Available tools:
       setPartialResponse(null);
       setError(null);
 
+      // We need this to capture partial responses in this scope
+      // so that we can handle the abort case without losing messages
+      let partialResponseLocal: ChatMessage[] = [];
+
       try {
         const systemPrompt = buildSystemPrompt();
+        const setPartialResponse1 = (messages: ChatMessage[]) => {
+          partialResponseLocal = messages;
+          setPartialResponse(messages);
+        };
         const newMessages = await processCompletion(
           currentChat,
-          setPartialResponse,
+          setPartialResponse1,
           tools,
           systemPrompt,
           toolExecutionContext,
@@ -355,6 +363,28 @@ Available tools:
         setPartialResponse(null);
         setResponding(false);
       } catch (err) {
+        // If we have an error, we are going to append the local partial response
+        // to the chat so that we don't lose messages
+        {
+          let updatedChat = currentChat;
+          for (const msg of partialResponseLocal) {
+            updatedChat = chatReducer(updatedChat, {
+              type: "add_message",
+              message: msg,
+            });
+          }
+          // And add an error message
+          const errorMessage: ChatMessage = {
+            role: "assistant",
+            content: err instanceof Error ? (err.name === "AbortError" ? "Request aborted" : `Error: ${err.message}`) : "Error occurred",
+          };
+          updatedChat = chatReducer(updatedChat, {
+            type: "add_message",
+            message: errorMessage,
+          });
+          setChat(updatedChat);
+        }
+
         // Don't show error for aborted requests
         if (err instanceof Error && err.name === "AbortError") {
           setPartialResponse(null);
@@ -423,6 +453,16 @@ Available tools:
     setError(null);
     setPartialResponse(null);
     setResponding(false);
+  }, []);
+
+  // Helper function to get estimated cost (imported from processCompletion logic)
+  const getEstimatedCostForModel = useCallback((model: string, promptToks: number, completionToks: number): number => {
+    for (const m of AVAILABLE_MODELS) {
+      if (m.model === model) {
+        return (m.cost.prompt * promptToks + m.cost.completion * completionToks) / 1_000_000;
+      }
+    }
+    return 0;
   }, []);
 
   const compressConversation = useCallback(async () => {
@@ -564,17 +604,7 @@ ${plainTextConversation}`;
     } finally {
       abortControllerRef.current = null;
     }
-  }, [chat, buildSystemPrompt]);
-
-  // Helper function to get estimated cost (imported from processCompletion logic)
-  const getEstimatedCostForModel = useCallback((model: string, promptToks: number, completionToks: number): number => {
-    for (const m of AVAILABLE_MODELS) {
-      if (m.model === model) {
-        return (m.cost.prompt * promptToks + m.cost.completion * completionToks) / 1_000_000;
-      }
-    }
-    return 0;
-  }, []);
+  }, [chat, buildSystemPrompt, getEstimatedCostForModel]);
 
   // Fetch initial suggestions when metadata is loaded
   const fetchInitialSuggestions = useCallback(async () => {
