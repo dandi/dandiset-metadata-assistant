@@ -11,8 +11,6 @@ import {
   Typography,
   Chip,
   Tooltip,
-  Checkbox,
-  FormControlLabel,
 } from '@mui/material';
 import KeyIcon from '@mui/icons-material/Key';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
@@ -21,6 +19,7 @@ import VisibilityIcon from '@mui/icons-material/Visibility';
 import VisibilityOffIcon from '@mui/icons-material/VisibilityOff';
 import { useMetadataContext } from '../../context/MetadataContext';
 import type { StorageType } from '../../utils/dandiApiKeyStorage';
+import { ApiKeyPersistCheckbox } from './ApiKeyPersistCheckbox';
 
 export function ApiKeyManager() {
   const { apiKey, setApiKey } = useMetadataContext();
@@ -100,22 +99,9 @@ export function ApiKeyManager() {
               {showKey ? <VisibilityOffIcon /> : <VisibilityIcon />}
             </IconButton>
           </Box>
-          <FormControlLabel
-            control={
-              <Checkbox
-                checked={persistKey}
-                onChange={(e) => setPersistKey(e.target.checked)}
-              />
-            }
-            label={
-              <Box sx={{ ml: 0 }}>
-                <Typography variant="body2">Persist API key in browser</Typography>
-                <Typography variant="caption" color="text.secondary">
-                  If unchecked, key will be cleared when browser closes
-                </Typography>
-              </Box>
-            }
-            sx={{ ml: 0, alignItems: 'flex-start' }}
+          <ApiKeyPersistCheckbox
+            checked={persistKey}
+            onChange={setPersistKey}
           />
         </DialogContent>
         <DialogActions>

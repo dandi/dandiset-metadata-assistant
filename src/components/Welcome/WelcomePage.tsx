@@ -15,8 +15,6 @@ import {
   IconButton,
   InputAdornment,
   Divider,
-  Checkbox,
-  FormControlLabel,
 } from '@mui/material';
 import SearchIcon from '@mui/icons-material/Search';
 import ScienceIcon from '@mui/icons-material/Science';
@@ -33,6 +31,7 @@ import {
   type DandisetSortOrder,
 } from '../../utils/api';
 import type { StorageType } from '../../utils/dandiApiKeyStorage';
+import { ApiKeyPersistCheckbox } from '../Controls/ApiKeyPersistCheckbox';
 
 interface WelcomePageProps {
   onDandisetLoaded: (dandisetId: string) => void;
@@ -191,22 +190,9 @@ export function WelcomePage({ onDandisetLoaded }: WelcomePageProps) {
               }}
             />
 
-            <FormControlLabel
-              control={
-                <Checkbox
-                  checked={persistKey}
-                  onChange={(e) => setPersistKey(e.target.checked)}
-                />
-              }
-              label={
-                <Box sx={{ ml: 0 }}>
-                  <Typography variant="body2">Persist API key in browser</Typography>
-                  <Typography variant="caption" color="text.secondary">
-                    If unchecked, key will be cleared when browser closes
-                  </Typography>
-                </Box>
-              }
-              sx={{ ml: 0, alignItems: 'flex-start' }}
+            <ApiKeyPersistCheckbox
+              checked={persistKey}
+              onChange={setPersistKey}
             />
 
             <Button
