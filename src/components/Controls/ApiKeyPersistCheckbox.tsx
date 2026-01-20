@@ -20,7 +20,7 @@ export function ApiKeyPersistCheckbox({ checked, onChange }: ApiKeyPersistCheckb
           <Typography variant="caption" color="text.secondary">
             {checked ? (
               <>
-                Key will be saved. <strong>Caution:</strong> Uses localStorage which stores data in plain text. Do not use on shared computers.
+                Key will be saved in this browser. <strong>Caution:</strong> Data stored in localStorage persists after you close the browser and may be accessible to other users of this device. Avoid enabling this on shared or public computers.
               </>
             ) : (
               'Key will be cleared when browser closes'

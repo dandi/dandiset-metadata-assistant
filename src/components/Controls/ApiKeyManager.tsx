@@ -18,14 +18,14 @@ import ErrorIcon from '@mui/icons-material/Error';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import VisibilityOffIcon from '@mui/icons-material/VisibilityOff';
 import { useMetadataContext } from '../../context/MetadataContext';
-import type { StorageType } from '../../utils/dandiApiKeyStorage';
+import { getCurrentStorageType, type StorageType } from '../../utils/dandiApiKeyStorage';
 import { ApiKeyPersistCheckbox } from './ApiKeyPersistCheckbox';
 
 export function ApiKeyManager() {
   const { apiKey, setApiKey } = useMetadataContext();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [localApiKey, setLocalApiKey] = useState('');
-  const [persistKey, setPersistKey] = useState(false);
+  const [persistKey, setPersistKey] = useState(getCurrentStorageType());
   const [showKey, setShowKey] = useState(false);
 
   const hasApiKey = !!apiKey;

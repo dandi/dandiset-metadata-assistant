@@ -30,7 +30,7 @@ import {
   type OwnedDandiset,
   type DandisetSortOrder,
 } from '../../utils/api';
-import type { StorageType } from '../../utils/dandiApiKeyStorage';
+import { getCurrentStorageType, type StorageType } from '../../utils/dandiApiKeyStorage';
 import { ApiKeyPersistCheckbox } from '../Controls/ApiKeyPersistCheckbox';
 
 interface WelcomePageProps {
@@ -54,7 +54,7 @@ export function WelcomePage({ onDandisetLoaded }: WelcomePageProps) {
   const [localDandisetId, setLocalDandisetId] = useState('');
   const [localApiKey, setLocalApiKey] = useState('');
   const [showApiKey, setShowApiKey] = useState(false);
-  const [persistKey, setPersistKey] = useState(false);
+  const [persistKey, setPersistKey] = useState(getCurrentStorageType());
   const [ownedDandisets, setOwnedDandisets] = useState<OwnedDandiset[]>([]);
   const [sortOrder, setSortOrder] = useState<DandisetSortOrder>('-modified');
   const [isLoadingDandisets, setIsLoadingDandisets] = useState(false);
