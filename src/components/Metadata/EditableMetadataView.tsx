@@ -10,6 +10,7 @@ import {
   IconButton,
   Tooltip,
   Divider,
+  Link,
 } from '@mui/material';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import UndoIcon from '@mui/icons-material/Undo';
@@ -120,33 +121,172 @@ function formatPrimitiveValue(value: unknown): string {
 }
 
 /**
- * Renders a string array as chips
+ * Checks if a string is a URL
+ */
+function isUrl(str: string): boolean {
+  try {
+    const url = new URL(str);
+    return url.protocol === 'http:' || url.protocol === 'https:';
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Checks if a string is an ORCID identifier (format: 0000-0000-0000-0000)
+ */
+function isOrcidId(str: string): boolean {
+  return /^\d{4}-\d{4}-\d{4}-\d{3}[\dX]$/.test(str);
+}
+
+/**
+ * Checks if a string is a DOI identifier (format: doi:10.xxxx/xxxxx)
+ */
+function isDoi(str: string): boolean {
+  return /^doi:10\.\d{4,}\/\S+$/i.test(str);
+}
+
+/**
+ * Checks if a string is a ROR identifier (format: ROR:xxxxxxx)
+ */
+function isRorId(str: string): boolean {
+  return /^ROR:[a-z0-9]+$/i.test(str);
+}
+
+/**
+ * Checks if a string is a linkable identifier (URL or known ID format)
+ */
+function isLinkable(str: string): boolean {
+  return isUrl(str) || isOrcidId(str) || isDoi(str) || isRorId(str);
+}
+
+/**
+ * Converts an identifier to a full URL if needed
+ */
+function getFullUrl(str: string): string {
+  if (isOrcidId(str)) {
+    return `https://orcid.org/${str}`;
+  }
+  if (isDoi(str)) {
+    // Extract the DOI part after "doi:" and create the URL
+    const doiPart = str.replace(/^doi:/i, '');
+    return `https://doi.org/${doiPart}`;
+  }
+  if (isRorId(str)) {
+    // Extract the ROR ID after "ROR:" and create the URL
+    const rorPart = str.replace(/^ROR:/i, '');
+    return `https://ror.org/${rorPart}`;
+  }
+  return str;
+}
+
+/**
+ * Gets a display label for known URL types (ROR, ORCID, ontologies)
+ */
+function getUrlDisplayLabel(url: string): string {
+  // ROR (Research Organization Registry)
+  const rorMatch = url.match(/ror\.org\/([a-z0-9]+)/i);
+  if (rorMatch) return `ROR:${rorMatch[1]}`;
+
+  // ORCID
+  const orcidMatch = url.match(/orcid\.org\/([\d-]+)/i);
+  if (orcidMatch) return `ORCID:${orcidMatch[1]}`;
+
+  // Ontologies - common patterns
+  // OBI (Ontology for Biomedical Investigations)
+  const obiMatch = url.match(/purl\.obolibrary\.org\/obo\/(OBI_\d+)/i);
+  if (obiMatch) return obiMatch[1].replace('_', ':');
+
+  // NCBI Taxonomy
+  const ncbiMatch = url.match(/purl\.obolibrary\.org\/obo\/NCBITaxon_(\d+)/i);
+  if (ncbiMatch) return `NCBITaxon:${ncbiMatch[1]}`;
+
+  // Generic obolibrary ontology
+  const oboMatch = url.match(/purl\.obolibrary\.org\/obo\/([A-Z]+_\d+)/i);
+  if (oboMatch) return oboMatch[1].replace('_', ':');
+
+  // DANDI identifiers
+  const dandiMatch = url.match(/identifiers\.org\/DANDI:(\d+)/i);
+  if (dandiMatch) return `DANDI:${dandiMatch[1]}`;
+
+  // For other URLs, return a shortened version for display
+  try {
+    const urlObj = new URL(url);
+    return urlObj.hostname + urlObj.pathname;
+  } catch {
+    return url;
+  }
+}
+
+/**
+ * Renders a value that may be a URL or linkable identifier as a clickable link
+ */
+function ValueOrLink({ value }: { value: string }) {
+  if (isLinkable(value)) {
+    const fullUrl = getFullUrl(value);
+    // Keep ORCID, DOI, and ROR as-is for display, use friendly labels for URLs
+    const displayLabel = (isOrcidId(value) || isDoi(value) || isRorId(value)) ? value : getUrlDisplayLabel(fullUrl);
+    return (
+      <Link
+        href={fullUrl}
+        target="_blank"
+        rel="noopener noreferrer"
+        sx={{ wordBreak: 'break-word' }}
+      >
+        {displayLabel}
+      </Link>
+    );
+  }
+  return <>{value || '—'}</>;
+}
+
+/**
+ * Renders a string array as chips, with URLs and linkable identifiers rendered as clickable links
  */
 function StringArrayDisplay({ values, isModified }: { values: string[]; isModified: boolean }) {
   if (!values || values.length === 0) {
     return <Typography variant="body2" color="text.secondary">None</Typography>;
   }
-  
+
   return (
     <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, overflow: 'hidden' }}>
-      {values.map((value, idx) => (
-        <Chip
-          key={idx}
-          label={value}
-          size="small"
-          sx={{
-            backgroundColor: isModified ? MODIFIED_BG : undefined,
-            borderColor: isModified ? MODIFIED_BORDER : undefined,
-            maxWidth: '100%',
-            '& .MuiChip-label': {
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              whiteSpace: 'nowrap',
-            },
-          }}
-          variant={isModified ? 'outlined' : 'filled'}
-        />
-      ))}
+      {values.map((value, idx) => {
+        const valueIsLinkable = isLinkable(value);
+        const fullUrl = valueIsLinkable ? getFullUrl(value) : value;
+        const displayLabel = valueIsLinkable
+          ? ((isOrcidId(value) || isDoi(value) || isRorId(value)) ? value : getUrlDisplayLabel(fullUrl))
+          : value;
+
+        const chip = (
+          <Chip
+            key={idx}
+            label={displayLabel}
+            size="small"
+            clickable={valueIsLinkable}
+            component={valueIsLinkable ? 'a' : 'div'}
+            {...(valueIsLinkable ? { href: fullUrl, target: '_blank', rel: 'noopener noreferrer' } : {})}
+            sx={{
+              backgroundColor: isModified ? MODIFIED_BG : undefined,
+              borderColor: isModified ? MODIFIED_BORDER : undefined,
+              maxWidth: '100%',
+              '& .MuiChip-label': {
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+              },
+              ...(valueIsLinkable && {
+                cursor: 'pointer',
+                '&:hover': {
+                  textDecoration: 'underline',
+                },
+              }),
+            }}
+            variant={isModified ? 'outlined' : 'filled'}
+          />
+        );
+
+        return chip;
+      })}
     </Box>
   );
 }
@@ -162,16 +302,38 @@ function formatIdentifier(identifier: string): string {
 }
 
 /**
- * Formats an affiliation object showing both name and identifier
+ * Renders an affiliation with a clickable ROR link if available
  */
-function formatAffiliation(obj: Record<string, unknown>): string {
+function AffiliationDisplay({ obj }: { obj: Record<string, unknown> }) {
   const name = typeof obj.name === 'string' ? obj.name : '';
   const identifier = typeof obj.identifier === 'string' ? obj.identifier : '';
-  
+
   if (name && identifier) {
-    return `${name} (${formatIdentifier(identifier)})`;
+    const formattedId = formatIdentifier(identifier);
+    // Get the link URL - either the original URL or construct from ROR ID
+    const linkUrl = isUrl(identifier) ? identifier : (isRorId(formattedId) ? getFullUrl(formattedId) : null);
+
+    return (
+      <>
+        {name} (
+        {linkUrl ? (
+          <Link href={linkUrl} target="_blank" rel="noopener noreferrer">
+            {formattedId}
+          </Link>
+        ) : (
+          formattedId
+        )}
+        )
+      </>
+    );
   }
-  return name || identifier || '—';
+
+  // If only identifier, check if it's linkable
+  if (identifier) {
+    return <ValueOrLink value={identifier} />;
+  }
+
+  return <>{name || '—'}</>;
 }
 
 /**
@@ -232,23 +394,36 @@ function ObjectDisplay({ obj, modifiedPaths }: { obj: Record<string, unknown>; m
               {Array.isArray(value) ? (
                 value.length > 0 ? (
                   typeof value[0] === 'object' ? (
-                    (value as Record<string, unknown>[])
-                      .map((item) => {
-                        // Use formatAffiliation for affiliation arrays
-                        if (key === 'affiliation' || item.schemaKey === 'Affiliation') {
-                          return formatAffiliation(item);
-                        }
-                        return getObjectDisplayName(item);
-                      })
-                      .join(', ')
+                    // Render object arrays - check for affiliations
+                    (value as Record<string, unknown>[]).map((item, i) => {
+                      const isAffiliation = key === 'affiliation' || item.schemaKey === 'Affiliation';
+                      return (
+                        <span key={i}>
+                          {i > 0 && ', '}
+                          {isAffiliation ? (
+                            <AffiliationDisplay obj={item} />
+                          ) : (
+                            getObjectDisplayName(item)
+                          )}
+                        </span>
+                      );
+                    })
                   ) : (
-                    value.join(', ')
+                    // Render string array values - check if they're URLs
+                    (value as string[]).map((v, i) => (
+                      <span key={i}>
+                        {i > 0 && ', '}
+                        <ValueOrLink value={String(v)} />
+                      </span>
+                    ))
                   )
                 ) : (
                   '—'
                 )
               ) : typeof value === 'object' && value !== null ? (
                 getObjectDisplayName(value as Record<string, unknown>)
+              ) : typeof value === 'string' ? (
+                <ValueOrLink value={value} />
               ) : (
                 formatPrimitiveValue(value)
               )}
