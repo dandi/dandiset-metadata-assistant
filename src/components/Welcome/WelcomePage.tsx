@@ -30,6 +30,8 @@ import {
   type OwnedDandiset,
   type DandisetSortOrder,
 } from '../../utils/api';
+import { getCurrentStorageType, type StorageType } from '../../utils/dandiApiKeyStorage';
+import { ApiKeyPersistCheckbox } from '../Controls/ApiKeyPersistCheckbox';
 
 interface WelcomePageProps {
   onDandisetLoaded: (dandisetId: string) => void;
@@ -52,6 +54,7 @@ export function WelcomePage({ onDandisetLoaded }: WelcomePageProps) {
   const [localDandisetId, setLocalDandisetId] = useState('');
   const [localApiKey, setLocalApiKey] = useState('');
   const [showApiKey, setShowApiKey] = useState(false);
+  const [persistKey, setPersistKey] = useState(getCurrentStorageType());
   const [ownedDandisets, setOwnedDandisets] = useState<OwnedDandiset[]>([]);
   const [sortOrder, setSortOrder] = useState<DandisetSortOrder>('-modified');
   const [isLoadingDandisets, setIsLoadingDandisets] = useState(false);
@@ -77,7 +80,8 @@ export function WelcomePage({ onDandisetLoaded }: WelcomePageProps) {
 
   const handleSaveApiKey = () => {
     if (localApiKey.trim()) {
-      setApiKey(localApiKey.trim());
+      const storageType: StorageType = persistKey ? 'local' : 'session';
+      setApiKey(localApiKey.trim(), storageType);
       setLocalApiKey('');
     }
   };
@@ -165,7 +169,7 @@ export function WelcomePage({ onDandisetLoaded }: WelcomePageProps) {
           </Box>
 
           {/* API Key Form */}
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, textAlign: 'left' }}>
             <TextField
               label="DANDI API Key"
               type={showApiKey ? 'text' : 'password'}
@@ -184,6 +188,11 @@ export function WelcomePage({ onDandisetLoaded }: WelcomePageProps) {
                   </InputAdornment>
                 ),
               }}
+            />
+
+            <ApiKeyPersistCheckbox
+              checked={persistKey}
+              onChange={setPersistKey}
             />
 
             <Button
