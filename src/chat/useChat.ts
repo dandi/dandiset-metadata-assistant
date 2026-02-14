@@ -92,6 +92,7 @@ interface UseChatOptions {
   modifyMetadata: (operation: 'set' | 'delete' | 'insert' | 'append', path: string, value?: unknown) => ModifyMetadataResult;
   dandisetId: string;
   version: string;
+  versionInfo?: any;
 }
 
 /**
@@ -128,7 +129,7 @@ const convertConversationToPlainText = (messages: ChatMessage[]): string => {
 };
 
 const useChat = (options: UseChatOptions) => {
-  const { originalMetadata, modifiedMetadata, modifyMetadata, dandisetId, version } = options;
+  const { originalMetadata, modifiedMetadata, modifyMetadata, dandisetId, version, versionInfo } = options;
 
   const [chat, setChat] = useState<Chat>(emptyChat);
   const [responding, setResponding] = useState<boolean>(false);
@@ -256,6 +257,17 @@ ${JSON.stringify(modifiedMetadata, null, 2)}
       parts.push("No modifications have been made to the metadata.");
     }
 
+    // Include validation errors from the DANDI API
+    const validationErrors = versionInfo?.version_validation_errors;
+    if (validationErrors && validationErrors.length > 0) {
+      parts.push(`## DANDI Validation Errors
+
+**The following validation errors were reported by the DANDI API for this dandiset. You should attempt to fix these when the user asks you to update or improve the metadata.**
+
+${validationErrors.map((err: any) => `- **${err.field || 'unknown'}**: ${err.message || JSON.stringify(err)}`).join('\n')}
+`);
+    }
+
     parts.push(`## Metadata Quality Checklist
 
 When reviewing or improving dandiset metadata, consider the following checklist:
@@ -315,7 +327,7 @@ Available tools:
     }
 
     return parts.join("\n\n");
-  }, [originalMetadata, modifiedMetadata, dandisetId, version, tools, metadataDocs, dandisetSchema]);
+  }, [originalMetadata, modifiedMetadata, dandisetId, version, versionInfo, tools, metadataDocs, dandisetSchema]);
 
   const generateResponse = useCallback(
     async (currentChat: Chat) => {
