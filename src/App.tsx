@@ -262,7 +262,7 @@ function AppContent() {
               <IconButton
                 color="inherit"
                 component="a"
-                href="https://github.com/magland/dandiset-metadata-assistant"
+                href="https://github.com/dandi/dandiset-metadata-assistant"
                 target="_blank"
                 rel="noopener noreferrer"
                 size="small"
@@ -345,7 +345,7 @@ function AppContent() {
             <IconButton
               color="inherit"
               component="a"
-              href="https://github.com/magland/dandiset-metadata-assistant"
+              href="https://github.com/dandi/dandiset-metadata-assistant"
               target="_blank"
               rel="noopener noreferrer"
               size="small"
