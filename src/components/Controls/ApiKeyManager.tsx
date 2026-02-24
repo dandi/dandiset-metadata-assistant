@@ -11,6 +11,8 @@ import {
   Typography,
   Chip,
   Tooltip,
+  CircularProgress,
+  Alert,
 } from '@mui/material';
 import KeyIcon from '@mui/icons-material/Key';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
@@ -20,6 +22,7 @@ import VisibilityOffIcon from '@mui/icons-material/VisibilityOff';
 import { useMetadataContext } from '../../context/MetadataContext';
 import { getCurrentStorageType, type StorageType } from '../../utils/dandiApiKeyStorage';
 import { ApiKeyPersistCheckbox } from './ApiKeyPersistCheckbox';
+import { verifyApiKey } from '../../utils/api';
 
 export function ApiKeyManager() {
   const { apiKey, setApiKey, dandiInstance } = useMetadataContext();
@@ -27,12 +30,15 @@ export function ApiKeyManager() {
   const [localApiKey, setLocalApiKey] = useState('');
   const [persistKey, setPersistKey] = useState(() => getCurrentStorageType(dandiInstance.apiUrl));
   const [showKey, setShowKey] = useState(false);
+  const [isVerifying, setIsVerifying] = useState(false);
+  const [keyError, setKeyError] = useState<string | null>(null);
 
   const hasApiKey = !!apiKey;
 
   const handleOpen = () => {
     setLocalApiKey(apiKey || '');
     setPersistKey(getCurrentStorageType(dandiInstance.apiUrl));
+    setKeyError(null);
     setIsDialogOpen(true);
   };
 
@@ -40,12 +46,28 @@ export function ApiKeyManager() {
     setIsDialogOpen(false);
     setLocalApiKey('');
     setShowKey(false);
+    setKeyError(null);
   };
 
-  const handleSave = () => {
-    const storageType: StorageType = persistKey ? 'local' : 'session';
-    setApiKey(localApiKey.trim() || null, storageType);
-    handleClose();
+  const handleSave = async () => {
+    const trimmed = localApiKey.trim();
+    if (!trimmed) {
+      setApiKey(null);
+      handleClose();
+      return;
+    }
+    setIsVerifying(true);
+    setKeyError(null);
+    try {
+      await verifyApiKey(trimmed, dandiInstance.apiUrl);
+      const storageType: StorageType = persistKey ? 'local' : 'session';
+      setApiKey(trimmed, storageType);
+      handleClose();
+    } catch (err) {
+      setKeyError(err instanceof Error ? err.message : 'Authentication failed');
+    } finally {
+      setIsVerifying(false);
+    }
   };
 
   const handleClear = () => {
@@ -104,6 +126,9 @@ export function ApiKeyManager() {
             checked={persistKey === 'local'}
             onChange={(checked) => setPersistKey(checked ? 'local' : 'session')}
           />
+          {keyError && (
+            <Alert severity="error" sx={{ mt: 1 }}>{keyError}</Alert>
+          )}
         </DialogContent>
         <DialogActions>
           {hasApiKey && (
@@ -112,9 +137,9 @@ export function ApiKeyManager() {
             </Button>
           )}
           <Box sx={{ flex: 1 }} />
-          <Button onClick={handleClose}>Cancel</Button>
-          <Button onClick={handleSave} variant="contained">
-            Save
+          <Button onClick={handleClose} disabled={isVerifying}>Cancel</Button>
+          <Button onClick={handleSave} variant="contained" disabled={isVerifying}>
+            {isVerifying ? <CircularProgress size={20} /> : 'Save'}
           </Button>
         </DialogActions>
       </Dialog>

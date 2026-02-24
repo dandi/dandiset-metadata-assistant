@@ -33,6 +33,7 @@ import { useMetadataContext } from '../../context/MetadataContext';
 import {
   fetchDandisetVersionInfo,
   fetchDandisets,
+  verifyApiKey,
   type OwnedDandiset,
   type DandisetSortOrder,
 } from '../../utils/api';
@@ -72,6 +73,8 @@ export function WelcomePage({ onDandisetLoaded }: WelcomePageProps) {
   const [page, setPage] = useState(1);
   const [hideEmpty, setHideEmpty] = useState(true);
   const [isLoadingDandisets, setIsLoadingDandisets] = useState(false);
+  const [isVerifyingKey, setIsVerifyingKey] = useState(false);
+  const [keyError, setKeyError] = useState<string | null>(null);
 
   // Fetch dandisets
   useEffect(() => {
@@ -107,11 +110,20 @@ export function WelcomePage({ onDandisetLoaded }: WelcomePageProps) {
     setPage(1);
   }, [sortOrder, onlyMine]);
 
-  const handleSaveApiKey = () => {
-    if (localApiKey.trim()) {
+  const handleSaveApiKey = async () => {
+    const trimmed = localApiKey.trim();
+    if (!trimmed) return;
+    setIsVerifyingKey(true);
+    setKeyError(null);
+    try {
+      await verifyApiKey(trimmed, dandiInstance.apiUrl);
       const storageType: StorageType = persistKey ? 'local' : 'session';
-      setApiKey(localApiKey.trim(), storageType);
+      setApiKey(trimmed, storageType);
       setLocalApiKey('');
+    } catch (err) {
+      setKeyError(err instanceof Error ? err.message : 'Authentication failed');
+    } finally {
+      setIsVerifyingKey(false);
     }
   };
 
@@ -234,12 +246,15 @@ export function WelcomePage({ onDandisetLoaded }: WelcomePageProps) {
                 variant="contained"
                 size="small"
                 onClick={handleSaveApiKey}
-                disabled={!localApiKey.trim()}
-                startIcon={<KeyIcon />}
+                disabled={!localApiKey.trim() || isVerifyingKey}
+                startIcon={isVerifyingKey ? <CircularProgress size={16} /> : <KeyIcon />}
               >
-                Save Key
+                {isVerifyingKey ? 'Verifying...' : 'Save Key'}
               </Button>
             </Box>
+            {keyError && (
+              <Alert severity="error" sx={{ mt: 1 }}>{keyError}</Alert>
+            )}
             <Typography variant="caption" color="text.secondary">
               To get your API key, log in to{' '}
               <a href={dandiInstance.webUrl} target="_blank" rel="noopener noreferrer">

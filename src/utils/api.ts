@@ -143,6 +143,21 @@ export interface DandiUser {
   status: string;
 }
 
+export async function verifyApiKey(apiKey: string, dandiApiBase: string): Promise<void> {
+  const url = `${dandiApiBase}/users/search/?search=`;
+  const response = await fetch(url, {
+    headers: {
+      Authorization: `token ${apiKey}`,
+    },
+  });
+  if (!response.ok) {
+    if (response.status === 401 || response.status === 403) {
+      throw new Error('Invalid API key');
+    }
+    throw new Error(`Authentication check failed: ${response.statusText}`);
+  }
+}
+
 export interface DandisetOwner {
   username: string;
 }
