@@ -57,12 +57,14 @@ export function WelcomePage({ onDandisetLoaded }: WelcomePageProps) {
     clearModifications,
     apiKey,
     setApiKey,
+    dandiInstance,
+    dandiApiBase,
   } = useMetadataContext();
 
   const [localDandisetId, setLocalDandisetId] = useState('');
   const [localApiKey, setLocalApiKey] = useState('');
   const [showApiKey, setShowApiKey] = useState(false);
-  const [persistKey, setPersistKey] = useState(getCurrentStorageType());
+  const [persistKey, setPersistKey] = useState(() => getCurrentStorageType(dandiInstance.apiUrl));
   const [dandisets, setDandisets] = useState<OwnedDandiset[]>([]);
   const [totalCount, setTotalCount] = useState(0);
   const [sortOrder, setSortOrder] = useState<DandisetSortOrder>('-modified');
@@ -83,6 +85,7 @@ export function WelcomePage({ onDandisetLoaded }: WelcomePageProps) {
       order: sortOrder,
       page,
       pageSize: PAGE_SIZE,
+      dandiApiBase,
     })
       .then(({ results, count }) => {
         setDandisets(results);
@@ -97,7 +100,7 @@ export function WelcomePage({ onDandisetLoaded }: WelcomePageProps) {
       .finally(() => {
         setIsLoadingDandisets(false);
       });
-  }, [apiKey, sortOrder, onlyMine, page, setError]);
+  }, [apiKey, dandiApiBase, sortOrder, onlyMine, page, setError]);
 
   // Reset to page 1 when filters change
   useEffect(() => {
@@ -129,7 +132,7 @@ export function WelcomePage({ onDandisetLoaded }: WelcomePageProps) {
     clearModifications();
 
     try {
-      const info = await fetchDandisetVersionInfo(dandisetIdToLoad.trim(), 'draft', apiKey);
+      const info = await fetchDandisetVersionInfo(dandisetIdToLoad.trim(), 'draft', apiKey, dandiApiBase);
       setVersionInfo(info);
       setDandisetId(dandisetIdToLoad.trim());
       setVersion('draft');
@@ -239,8 +242,8 @@ export function WelcomePage({ onDandisetLoaded }: WelcomePageProps) {
             </Box>
             <Typography variant="caption" color="text.secondary">
               Get your API key from{' '}
-              <a href="https://dandiarchive.org/account/settings" target="_blank" rel="noopener noreferrer">
-                DANDI account settings
+              <a href={`${dandiInstance.webUrl}/account/settings`} target="_blank" rel="noopener noreferrer">
+                {dandiInstance.name} account settings
               </a>
               . An API key is only required to filter by your dandisets and to commit changes.
             </Typography>

@@ -22,16 +22,17 @@ import { getCurrentStorageType, type StorageType } from '../../utils/dandiApiKey
 import { ApiKeyPersistCheckbox } from './ApiKeyPersistCheckbox';
 
 export function ApiKeyManager() {
-  const { apiKey, setApiKey } = useMetadataContext();
+  const { apiKey, setApiKey, dandiInstance } = useMetadataContext();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [localApiKey, setLocalApiKey] = useState('');
-  const [persistKey, setPersistKey] = useState(getCurrentStorageType());
+  const [persistKey, setPersistKey] = useState(() => getCurrentStorageType(dandiInstance.apiUrl));
   const [showKey, setShowKey] = useState(false);
 
   const hasApiKey = !!apiKey;
 
   const handleOpen = () => {
     setLocalApiKey(apiKey || '');
+    setPersistKey(getCurrentStorageType(dandiInstance.apiUrl));
     setIsDialogOpen(true);
   };
 
@@ -68,20 +69,20 @@ export function ApiKeyManager() {
       <Dialog open={isDialogOpen} onClose={handleClose} maxWidth="sm" fullWidth>
         <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
           <KeyIcon />
-          DANDI API Key
+          {dandiInstance.name} API Key
         </DialogTitle>
         <DialogContent>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-            Enter your DANDI API key to enable committing changes.
+            Enter your {dandiInstance.name} API key to enable committing changes.
           </Typography>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
             You can get your API key from your{' '}
             <a
-              href="https://dandiarchive.org/account/settings"
+              href={`${dandiInstance.webUrl}/account/settings`}
               target="_blank"
               rel="noopener noreferrer"
             >
-              DANDI account settings
+              {dandiInstance.name} account settings
             </a>
             .
           </Typography>
@@ -92,7 +93,7 @@ export function ApiKeyManager() {
               type={showKey ? 'text' : 'password'}
               value={localApiKey}
               onChange={(e) => setLocalApiKey(e.target.value)}
-              placeholder="Enter your DANDI API key"
+              placeholder={`Enter your ${dandiInstance.name} API key`}
               autoComplete="off"
             />
             <IconButton onClick={() => setShowKey(!showKey)}>
