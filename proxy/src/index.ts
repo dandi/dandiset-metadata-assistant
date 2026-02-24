@@ -5,7 +5,7 @@ const ALLOWED_ORIGINS = [
   'http://localhost:5173',
   'https://magland.github.io',
   'https://dandi.github.io',
-  'medit.dandiarchive.org'
+  'https://medit.dandiarchive.org'
 ];
 
 // DANDI API base URL
