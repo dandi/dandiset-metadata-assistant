@@ -12,7 +12,7 @@ const DANDI_API_BASE = 'https://api.dandiarchive.org/api';
 // Whitelist of allowed DANDI instance URLs
 const ALLOWED_INSTANCE_URLS = [
   'https://api.dandiarchive.org/api',
-  'https://api-staging.dandiarchive.org/api',
+  'https://api.sandbox.dandiarchive.org/api',
   'https://api-dandi.emberarchive.org/api',
 ];
 

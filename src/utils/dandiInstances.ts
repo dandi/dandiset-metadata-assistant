@@ -11,9 +11,9 @@ export const DANDI_INSTANCES: DandiInstance[] = [
     webUrl: 'https://dandiarchive.org',
   },
   {
-    name: 'DANDI Staging',
-    apiUrl: 'https://api-staging.dandiarchive.org/api',
-    webUrl: 'https://staging.dandiarchive.org',
+    name: 'DANDI Sandbox',
+    apiUrl: 'https://api.sandbox.dandiarchive.org/api',
+    webUrl: 'https://sandbox.dandiarchive.org',
   },
   {
     name: 'EMBER',
